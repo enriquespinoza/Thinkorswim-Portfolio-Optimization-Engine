@@ -1,0 +1,10 @@
+cff-version: 1.2.0
+message: "If you use this software or its documented research workflow, please cite this repository and the original methodological/data sources listed in docs/SOURCES_AND_ATTRIBUTION.md."
+title: "Thinkorswim Portfolio Optimization Engine"
+type: software
+authors:
+  - name: "enriquespinoza"
+repository-code: "https://github.com/enriquespinoza/Thinkorswim-Portfolio-Optimization-Engine"
+url: "https://github.com/enriquespinoza/Thinkorswim-Portfolio-Optimization-Engine"
+date-released: 2026-10-07
+license: MIT
