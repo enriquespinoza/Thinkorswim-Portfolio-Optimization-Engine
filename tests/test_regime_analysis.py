@@ -1,17 +1,16 @@
 import pandas as pd
 
-from src.backtest.regime_analysis import (
+from src.backtest.metrics import (
     summarize_return_series,
 )
 
 from src.backtest.regime_analysis import (
     analyze_custom_regimes,
     rank_models_by_regime,
-    summarize_period,
 )
 
 
-def test_summarize_period():
+def test_summarize_return_series():
     returns = pd.Series(
         [
             0.02,

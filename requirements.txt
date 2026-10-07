@@ -6,3 +6,4 @@ yfinance
 matplotlib
 pytest
 python-dotenv
+requests>=2.32,<3

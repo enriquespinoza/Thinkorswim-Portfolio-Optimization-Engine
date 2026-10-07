@@ -8,122 +8,6 @@ from src.backtest.metrics import (
 )
 
 
-def summarize_period(
-    returns: pd.Series,
-    periods_per_year: int = 12,
-) -> dict[str, float]:
-    """
-    Calculate performance statistics for one return series.
-    """
-    if returns.empty:
-        return {
-            "periods": 0,
-            "total_return": np.nan,
-            "annualized_return": np.nan,
-            "annualized_volatility": np.nan,
-            "sharpe": np.nan,
-            "sortino": np.nan,
-            "max_drawdown": np.nan,
-        }
-
-    total_growth = (
-        1.0 + returns
-    ).prod()
-
-    periods = len(
-        returns
-    )
-
-    annualized_return = (
-        total_growth
-        ** (
-            periods_per_year
-            / periods
-        )
-        - 1.0
-    )
-
-    if periods > 1:
-        annualized_volatility = (
-            returns.std(
-                ddof=1
-            )
-            * np.sqrt(
-                periods_per_year
-            )
-        )
-    else:
-        annualized_volatility = np.nan
-
-    if (
-        annualized_volatility > 0
-        and np.isfinite(
-            annualized_volatility
-        )
-    ):
-        sharpe = (
-            annualized_return
-            / annualized_volatility
-        )
-    else:
-        sharpe = np.nan
-
-    downside = (
-        returns[
-            returns < 0
-        ]
-    )
-
-    if len(
-        downside
-    ) > 1:
-        downside_deviation = (
-            downside.std(
-                ddof=1
-            )
-            * np.sqrt(
-                periods_per_year
-            )
-        )
-
-        if (
-            downside_deviation > 0
-        ):
-            sortino = (
-                annualized_return
-                / downside_deviation
-            )
-        else:
-            sortino = np.nan
-    else:
-        sortino = np.nan
-
-    return {
-        "periods":
-            periods,
-
-        "total_return":
-            total_growth - 1.0,
-
-        "annualized_return":
-            annualized_return,
-
-        "annualized_volatility":
-            annualized_volatility,
-
-        "sharpe":
-            sharpe,
-
-        "sortino":
-            sortino,
-
-        "max_drawdown":
-            calculate_max_drawdown(
-                returns
-            ),
-    }
-
-
 def analyze_custom_regimes(
     period_results: pd.DataFrame,
     regimes: dict[
@@ -234,9 +118,11 @@ def analyze_custom_regimes(
                 summarize_return_series(
                     group[
                         "net_return"
-                ]
+                ],
+                periods_per_year=12,
+                risk_free_rate=0.0,
+                )
             )
-        )
 
             records.append(
                 {

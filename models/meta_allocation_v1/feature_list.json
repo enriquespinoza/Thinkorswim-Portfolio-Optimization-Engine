@@ -1,0 +1,19 @@
+{
+  "version": "1.0.0",
+  "feature_count": 12,
+  "features": [
+    "SPY_return_21d",
+    "SPY_return_63d",
+    "QQQ_return_63d",
+    "SCHD_return_63d",
+    "TLT_return_63d",
+    "GLD_return_63d",
+    "SPY_vol_21d",
+    "TLT_vol_21d",
+    "average_pairwise_corr_63d",
+    "equity_bond_corr_63d",
+    "cross_asset_return_dispersion_63d",
+    "cross_asset_vol_dispersion_63d"
+  ],
+  "feature_policy": "Frozen. Historical feature changes require a new model version."
+}

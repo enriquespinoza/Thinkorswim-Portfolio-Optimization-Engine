@@ -1,0 +1,18 @@
+{
+  "artifact": "Meta Allocation V1",
+  "version": "1.0.0",
+  "frozen_at_utc": "2026-10-07T00:05:57.641932+00:00",
+  "source_dataset": "C:\\Users\\enriq\\OneDrive\\Desktop\\Projects\\Thinkorswim-Portfolio-Optimization-Engine\\data\\features\\meta_learning_dataset_with_macro.csv",
+  "source_dataset_sha256": "18944d005b4b4cd060f6ee3bd8f7816590850845b342c1746c7ccc75b408e15c",
+  "files": {
+    "coefficients.csv": "1dcf7c7bf5a4e1a716f373f001fa5592582ffe8e6a396ede945760e46c906554",
+    "feature_list.json": "01509ef64c25af8fee9243f3c56387540373602cbbaff965ff7a6a3e7689ebd1",
+    "FROZEN.txt": "0117e48b859b9264f4a9cdf3f1009cc95c45e33962efa1dbb2169123b5015d1d",
+    "meta_allocation_v1.joblib": "fcb8d9d2c7df75a2bcd412277476206ebee93300cbd1eb2cc2afedf271bef999",
+    "model_spec.json": "64a097a6b5378c4613dc4a8cbe78f06c0b0de0a9fdd013de7ea038b08c9a50a3",
+    "quarterly_returns.csv": "cdb3f0b58ad4d750da5d2b3969b9da5a926d96fb3b17c793283fec47e8007154",
+    "README.md": "134cd8553936dcb8a2f19fcc639bf3dec01a0fbcb62dfcc06a89e73cc9cd0d40",
+    "research_results.csv": "8b77b44b5d16bbea2b9cdd3101be7246678fa1c226efdf33190e814fb1ca6a3a",
+    "validation_summary.md": "16f652063e4e8e04f290b9bfc5e73297909792d4775748af514713e25ff8983f"
+  }
+}
