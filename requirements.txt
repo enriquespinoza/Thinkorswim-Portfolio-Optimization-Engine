@@ -7,3 +7,5 @@ matplotlib
 pytest
 python-dotenv
 requests>=2.32,<3
+exchange-calendars>=4.5,<5
+schwab-py==1.5.1
