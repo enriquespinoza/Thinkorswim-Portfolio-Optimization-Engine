@@ -156,6 +156,8 @@ The research and implementation build on published academic work, public data so
 
 See [docs/SOURCES_AND_ATTRIBUTION.md](docs/SOURCES_AND_ATTRIBUTION.md) for citations covering Markowitz mean-variance selection, Ledoit-Wolf covariance shrinkage, risk parity, HRP, Sharpe ratio, Ridge regression, bootstrap methods, walk-forward/time-series evaluation, SciPy optimization, FRED/ALFRED, yfinance, exchange_calendars, Charles Schwab, and schwab-py.
 
+For public write-ups, see [docs/PUBLISHING_GUIDE.md](docs/PUBLISHING_GUIDE.md) for evidence-labeling, disclosure, attribution, and citation guidance.
+
 Citations acknowledge prior work and help readers reproduce the implementation. They do not imply endorsement by the cited individuals or organizations.
 
 ## Security and secrets
