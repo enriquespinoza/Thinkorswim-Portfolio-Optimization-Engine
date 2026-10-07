@@ -218,3 +218,8 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Schwab OAuth / broker secrets
+tokens/
+*.token.json
+data/private/
