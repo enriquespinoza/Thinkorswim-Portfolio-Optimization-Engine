@@ -7,6 +7,11 @@ import json
 import numpy as np
 import pandas as pd
 
+from src.forward.meta_allocation_v1_portfolio_snapshot import (
+    PortfolioSnapshot,
+    sha256_series_snapshot,
+)
+
 from config.settings import DEFAULT_UNIVERSE
 
 
@@ -1198,36 +1203,7 @@ def build_order_plan_from_weight_record(
         transaction_cost_bps=
             transaction_cost_bps,
     )
-def sha256_series_snapshot(
-    series: pd.Series,
-    assets: list[str],
-) -> str:
-    payload = [
-        {
-            "asset": asset,
-            "value": float(
-                series.loc[
-                    asset
-                ]
-            ),
-        }
-        for asset in assets
-    ]
 
-    encoded = json.dumps(
-        payload,
-        separators=(",", ":"),
-        sort_keys=True,
-        ensure_ascii=True,
-    ).encode(
-        "utf-8"
-    )
-
-    return hashlib.sha256(
-        encoded
-    ).hexdigest()
-
-def test_plan_hash_changes_when_cash_changes():
     first = build_order_plan(
         target_weights=equal_weights(),
         current_shares=sample_holdings(),
@@ -1259,6 +1235,127 @@ def test_plan_hash_changes_when_cash_changes():
         != second.order_plan_hash
     )
 
+
+def build_order_plan_from_snapshot(
+    weight_record: dict,
+    snapshot: PortfolioSnapshot,
+    transaction_cost_bps: float = (
+        DEFAULT_TRANSACTION_COST_BPS
+    ),
+) -> OrderPlanResult:
+    """
+    Build a Meta Allocation V1 hypothetical order plan
+    directly from a normalized PortfolioSnapshot.
+
+    The PortfolioSnapshot is the broker-independent
+    boundary. No brokerage connection or order submission
+    occurs here.
+    """
+    if not isinstance(
+        snapshot,
+        PortfolioSnapshot,
+    ):
+        raise TypeError(
+            "snapshot must be a PortfolioSnapshot."
+        )
+
+    validate_weight_record(
+        weight_record
+    )
+
+    effective_from = pd.Timestamp(
+        weight_record[
+            "effective_from"
+        ]
+    ).normalize()
+
+    snapshot_date = pd.Timestamp(
+        snapshot.snapshot_timestamp
+    ).date()
+
+    if (
+        snapshot_date
+        < effective_from.date()
+    ):
+        raise ValueError(
+            "Portfolio snapshot predates the "
+            "target effective date.\n"
+            f"Snapshot date: "
+            f"{snapshot_date}\n"
+            f"Effective from: "
+            f"{effective_from.date()}"
+        )
+
+    result = (
+        build_order_plan_from_weight_record(
+            weight_record=
+                weight_record,
+
+            current_shares=
+                snapshot.current_shares,
+
+            current_cash=
+                snapshot.cash,
+
+            reference_prices=
+                snapshot.reference_prices,
+
+            transaction_cost_bps=
+                transaction_cost_bps,
+        )
+    )
+
+    # --------------------------------------------------------------
+    # Snapshot / order-plan provenance checks
+    # --------------------------------------------------------------
+
+    if (
+        result.holdings_snapshot_hash
+        != snapshot.holdings_snapshot_hash
+    ):
+        raise RuntimeError(
+            "Holdings snapshot hash mismatch "
+            "between PortfolioSnapshot and "
+            "OrderPlanResult."
+        )
+
+    if (
+        result.price_snapshot_hash
+        != snapshot.price_snapshot_hash
+    ):
+        raise RuntimeError(
+            "Price snapshot hash mismatch "
+            "between PortfolioSnapshot and "
+            "OrderPlanResult."
+        )
+
+    if not np.isclose(
+        result.portfolio_value_before,
+        snapshot.portfolio_value,
+        atol=1e-8,
+        rtol=0.0,
+    ):
+        raise RuntimeError(
+            "Portfolio value mismatch between "
+            "PortfolioSnapshot and OrderPlanResult.\n"
+            f"Snapshot value: "
+            f"{snapshot.portfolio_value:.12f}\n"
+            f"Order-plan value: "
+            f"{result.portfolio_value_before:.12f}"
+        )
+
+    if not np.isclose(
+        result.cash_before,
+        snapshot.cash,
+        atol=1e-8,
+        rtol=0.0,
+    ):
+        raise RuntimeError(
+            "Cash mismatch between "
+            "PortfolioSnapshot and OrderPlanResult."
+        )
+
+    return result
 
 def test_plan_hash_changes_when_price_changes():
     changed_prices = sample_prices()

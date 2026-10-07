@@ -2,9 +2,14 @@ import numpy as np
 import pandas as pd
 import pytest
 
+from src.forward.meta_allocation_v1_portfolio_snapshot import (
+    build_portfolio_snapshot,
+)
+
 from src.forward.meta_allocation_v1_order_plan import (
     EXECUTION_MODE,
     build_order_plan,
+    build_order_plan_from_snapshot,
     build_order_plan_from_weight_record,
 )
 
@@ -634,4 +639,229 @@ def test_order_plan_hash_is_deterministic():
     assert (
         first.order_plan_hash
         == second.order_plan_hash
+    )
+def sample_portfolio_snapshot():
+    return build_portfolio_snapshot(
+        holdings=
+            sample_holdings(),
+
+        cash=
+            20_000.0,
+
+        reference_prices=
+            sample_prices(),
+
+        snapshot_timestamp=
+            "2026-11-02T14:30:00+00:00",
+
+        price_as_of=
+            "2026-10-30T20:00:00+00:00",
+
+        account_mode=
+            "PAPERMONEY",
+    )
+
+
+def test_build_order_plan_from_snapshot():
+    snapshot = (
+        sample_portfolio_snapshot()
+    )
+
+    result = (
+        build_order_plan_from_snapshot(
+            weight_record=
+                sample_weight_record(),
+
+            snapshot=
+                snapshot,
+
+            transaction_cost_bps=
+                5.0,
+        )
+    )
+
+    assert np.isclose(
+        result.portfolio_value_before,
+        snapshot.portfolio_value,
+    )
+
+    assert np.isclose(
+        result.cash_before,
+        snapshot.cash,
+    )
+
+    assert (
+        result.holdings_snapshot_hash
+        == snapshot.holdings_snapshot_hash
+    )
+
+    assert (
+        result.price_snapshot_hash
+        == snapshot.price_snapshot_hash
+    )
+
+
+def test_snapshot_adapter_matches_direct_order_plan():
+    snapshot = (
+        sample_portfolio_snapshot()
+    )
+
+    from_snapshot = (
+        build_order_plan_from_snapshot(
+            weight_record=
+                sample_weight_record(),
+
+            snapshot=
+                snapshot,
+
+            transaction_cost_bps=
+                5.0,
+        )
+    )
+
+    direct = (
+        build_order_plan_from_weight_record(
+            weight_record=
+                sample_weight_record(),
+
+            current_shares=
+                sample_holdings(),
+
+            current_cash=
+                20_000.0,
+
+            reference_prices=
+                sample_prices(),
+
+            transaction_cost_bps=
+                5.0,
+        )
+    )
+
+    assert (
+        from_snapshot.order_plan_hash
+        == direct.order_plan_hash
+    )
+
+    pd.testing.assert_frame_equal(
+        from_snapshot.orders,
+        direct.orders,
+    )
+
+
+def test_snapshot_before_effective_date_rejected():
+    snapshot = (
+        build_portfolio_snapshot(
+            holdings=
+                sample_holdings(),
+
+            cash=
+                20_000.0,
+
+            reference_prices=
+                sample_prices(),
+
+            snapshot_timestamp=
+                "2026-11-01T20:00:00+00:00",
+
+            price_as_of=
+                "2026-10-30T20:00:00+00:00",
+
+            account_mode=
+                "PAPERMONEY",
+        )
+    )
+
+    with pytest.raises(
+        ValueError,
+        match="predates",
+    ):
+        build_order_plan_from_snapshot(
+            weight_record=
+                sample_weight_record(),
+
+            snapshot=
+                snapshot,
+        )
+
+
+def test_snapshot_adapter_remains_dry_run():
+    result = (
+        build_order_plan_from_snapshot(
+            weight_record=
+                sample_weight_record(),
+
+            snapshot=
+                sample_portfolio_snapshot(),
+
+            transaction_cost_bps=
+                5.0,
+        )
+    )
+
+    assert (
+        result.execution_mode
+        == "DRY_RUN"
+    )
+
+
+def test_snapshot_adapter_preserves_trade_plan():
+    result = (
+        build_order_plan_from_snapshot(
+            weight_record=
+                sample_weight_record(),
+
+            snapshot=
+                sample_portfolio_snapshot(),
+
+            transaction_cost_bps=
+                0.0,
+        )
+    )
+
+    orders = (
+        result.orders
+        .set_index(
+            "asset"
+        )
+    )
+
+    assert (
+        orders.loc[
+            "SPY",
+            "trade_shares",
+        ]
+        == -60
+    )
+
+    assert (
+        orders.loc[
+            "QQQ",
+            "trade_shares",
+        ]
+        == -17
+    )
+
+    assert (
+        orders.loc[
+            "TLT",
+            "trade_shares",
+        ]
+        == 200
+    )
+
+    assert (
+        orders.loc[
+            "GLD",
+            "trade_shares",
+        ]
+        == 100
+    )
+
+    assert (
+        orders.loc[
+            "SCHD",
+            "trade_shares",
+        ]
+        == 250
     )
