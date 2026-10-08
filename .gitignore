@@ -223,3 +223,6 @@ __marimo__/
 tokens/
 *.token.json
 data/private/
+
+# Locally retained third-party source documents
+docs/source_materials/private/
