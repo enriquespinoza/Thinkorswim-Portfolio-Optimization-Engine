@@ -14,11 +14,14 @@ The references below use three provenance categories.
 
 These are documents or source materials directly supplied by the project owner during development.
 
-At the current publication checkpoint, the clearly documented supplied source is:
+At the current publication checkpoint, the clearly documented supplied Schwab primary sources are:
 
-- **Charles Schwab Developer Portal product catalog PDF** supplied by the project owner on 2026-10-07.
-  - The supplied material identifies **Trader API - Individual** as the personal-use API product for a developer's own self-directed Schwab Brokerage account and describes access to real-time account information, market data, and trade capability.
-  - This supplied document was used to confirm which Schwab API product matched the project's intended personal-use integration.
+- **Trader API - Individual — Market Data Production** (Charles Schwab Developer Portal), supplied by the project owner on 2026-10-08.
+  - Documents the Market Data production server and read interfaces for quotes, option chains, price history, movers, market hours, and instruments.
+- **Trader API - Individual — Accounts and Trading Production** (Charles Schwab Developer Portal), supplied by the project owner on 2026-10-08.
+  - Documents account-number/hash lookup, balances and positions, transactions, user preferences, and the underlying order-management interface.
+
+The repository does not redistribute these supplied PDFs. Instead it records their provenance, capture date, file size, SHA-256 hash, documented interfaces, and current official provider location in [docs/sources/SCHWAB_PRIMARY_SOURCES.md](sources/SCHWAB_PRIMARY_SOURCES.md). This preserves reproducibility while avoiding the implication that third-party documentation is project-owned material.
 
 If additional papers, datasets, documentation, or other materials are supplied by the project owner later, they should be added to this section with the date and the part of the project they informed.
 
@@ -61,19 +64,24 @@ This distinction is important for accurate research provenance. Future public wr
 
 # A. Project-owner supplied source material
 
-## Charles Schwab Developer Portal product catalog
+## Charles Schwab Trader API - Individual specifications
 
 **Provenance:** directly supplied by the project owner.
 
-The supplied Schwab Developer Portal document identifies **Trader API - Individual** as a personal-use API for the developer's own self-directed brokerage account, including real-time account information, market data, and trade capability.
+Two Schwab Developer Portal specifications were supplied and used as primary implementation references:
 
-The document also distinguishes other Schwab API products, including account/data aggregation products, from Trader API - Individual.
+1. **Market Data Production** — documents the `https://api.schwabapi.com/marketdata/v1` server and market-data read interfaces, including quotes, option chains, price history, movers, market hours, and instruments.
+2. **Accounts and Trading Production** — documents the `https://api.schwabapi.com/trader/v1` server, account-number/hash lookup, balances and positions, transaction reads, user preferences, and Schwab's underlying order-management endpoints.
 
-This source was used to confirm the appropriate Schwab product for the project's planned personal account integration.
+The current project intentionally implements only a restricted read boundary despite the broader capabilities documented by Schwab.
 
-For public reproduction, readers should consult the current Schwab Developer Portal because product descriptions, eligibility, approval processes, and API terms can change.
+Exact source-copy hashes and capture metadata are recorded in:
 
-Public Schwab portal:
+- [docs/sources/SCHWAB_PRIMARY_SOURCES.md](sources/SCHWAB_PRIMARY_SOURCES.md)
+
+The PDFs themselves are not redistributed in this public repository. Developers who are permitted to retain local source copies can use the gitignored `docs/source_materials/private/` location documented in [docs/source_materials/README.md](source_materials/README.md).
+
+For public reproduction, readers should also consult the current Schwab Developer Portal because specifications, eligibility requirements, and API terms can change:
 
 - https://developer.schwab.com/
 
