@@ -164,7 +164,16 @@ def test_provider_intrinsic_and_percent_change_do_not_drive_features():
     assert spy["contract_count_eligible"] == 2
     assert spy["atm_call_iv_median"] == 20.0
     assert spy["atm_put_iv_median"] == 22.0
-    assert spy["atm_put_call_iv_skew"] == 2.0
+    assert spy["atm_contract_count"] == 2
+    assert spy["atm_contract_count_dte_31_90"] == 2
+    assert spy["atm_put_call_iv_skew_matched_median"] == 2.0
+    assert spy["atm_expiration_pair_count"] == 1
+    assert spy["atm_put_call_iv_skew_dte_31_90"] == 2.0
+    assert spy["atm_skew_pair_count_dte_31_90"] == 1
+    assert spy["delta_25_put_call_iv_skew_matched_median"] == 2.0
+    assert spy["delta_25_expiration_pair_count"] == 1
+    assert spy["delta_25_put_call_iv_skew_dte_31_90"] == 2.0
+    assert spy["delta_25_pair_count_dte_31_90"] == 1
     assert spy["put_call_open_interest_ratio"] == 1.5
     assert spy["put_call_volume_ratio"] == 1.5
     assert spy["canonical_extrinsic_value_median"] == 10.75
@@ -174,6 +183,57 @@ def test_provider_intrinsic_and_percent_change_do_not_drive_features():
     assert "intrinsicValue" not in features.columns
     assert "extrinsicValue" not in features.columns
     assert "theoreticalVolatility" not in features.columns
+
+
+
+def test_matched_expiration_skew_does_not_mix_maturities():
+    frame = make_options().iloc[:2].copy()
+
+    call_90 = frame.iloc[0].copy()
+    call_90["expiration_date"] = "2027-01-08"
+    call_90["expiration_dte"] = 91
+    call_90["volatility"] = 30.0
+    call_90["delta"] = 0.25
+
+    put_90 = frame.iloc[1].copy()
+    put_90["expiration_date"] = "2027-01-08"
+    put_90["expiration_dte"] = 91
+    put_90["volatility"] = 34.0
+    put_90["delta"] = -0.25
+
+    frame.loc[0, "delta"] = 0.25
+    frame.loc[0, "volatility"] = 20.0
+    frame.loc[1, "delta"] = -0.25
+    frame.loc[1, "volatility"] = 22.0
+
+    frame = pd.concat(
+        [
+            frame,
+            pd.DataFrame(
+                [
+                    call_90,
+                    put_90,
+                ]
+            ),
+        ],
+        ignore_index=True,
+    )
+
+    features = build_schwab_option_features(
+        frame,
+        make_quotes(),
+    )
+
+    spy = features.loc[
+        features["underlying_symbol"] == "SPY"
+    ].iloc[0]
+
+    assert spy["delta_25_expiration_pair_count"] == 2
+    assert spy["delta_25_put_call_iv_skew_matched_median"] == 3.0
+    assert spy["delta_25_pair_count_dte_31_90"] == 1
+    assert spy["delta_25_put_call_iv_skew_dte_31_90"] == 2.0
+    assert spy["delta_25_pair_count_dte_91_365"] == 1
+    assert spy["delta_25_put_call_iv_skew_dte_91_365"] == 4.0
 
 
 def test_zero_dte_can_be_included_by_configuration():
