@@ -6,11 +6,15 @@ from src.integrations.schwab.auth_bootstrap import (
     DEFAULT_MAX_TOKEN_AGE_SECONDS,
     SchwabAuthConfig,
     create_authenticated_schwab_client,
+    create_market_data_schwab_client,
     create_read_only_schwab_client,
     load_schwab_auth_config,
     validate_auth_config,
 )
 
+from src.integrations.schwab.market_data_client import (
+    SchwabMarketDataClient,
+)
 from src.integrations.schwab.read_only_client import (
     SchwabReadOnlyClient,
 )
@@ -529,4 +533,64 @@ def test_nonpositive_token_age_rejected(
     ):
         validate_auth_config(
             config
+        )
+
+
+def test_market_data_wrapper_created(
+    tmp_path: Path,
+):
+    config = (
+        sample_config(
+            tmp_path
+        )
+    )
+
+    factory = (
+        RecordingAuthFactory()
+    )
+
+    client = (
+        create_market_data_schwab_client(
+            config=
+                config,
+
+            auth_factory=
+                factory,
+        )
+    )
+
+    assert isinstance(
+        client,
+        SchwabMarketDataClient,
+    )
+
+
+def test_market_data_wrapper_exposes_no_account_or_order_methods(
+    tmp_path: Path,
+):
+    client = (
+        create_market_data_schwab_client(
+            config=
+                sample_config(
+                    tmp_path
+                ),
+
+            auth_factory=
+                RecordingAuthFactory(),
+        )
+    )
+
+    forbidden = (
+        "get_account",
+        "get_account_numbers",
+        "place_order",
+        "replace_order",
+        "cancel_order",
+        "preview_order",
+    )
+
+    for method_name in forbidden:
+        assert not hasattr(
+            client,
+            method_name,
         )
