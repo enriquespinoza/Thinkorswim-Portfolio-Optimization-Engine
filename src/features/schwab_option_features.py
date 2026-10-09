@@ -8,7 +8,7 @@ import numpy as np
 import pandas as pd
 
 
-FEATURE_SCHEMA_VERSION = "1.0.0"
+FEATURE_SCHEMA_VERSION = "1.1.0"
 
 DEFAULT_ATM_MONEYNESS_PCT = 2.0
 DEFAULT_MAX_QUOTE_AGE_MINUTES = 30.0
@@ -1000,12 +1000,29 @@ def _dte_mask(
     return mask
 
 
+def _expiration_column(
+    frame: pd.DataFrame,
+) -> str:
+    for column in (
+        "expiration_date",
+        "expiration_key",
+    ):
+        if column in frame.columns:
+            return column
+
+    raise ValueError(
+        "Prepared Schwab option frame requires "
+        "expiration_date or expiration_key for "
+        "matched-expiration skew features."
+    )
+
+
 def _atm_iv_by_bucket(
     eligible: pd.DataFrame,
-) -> dict[str, float]:
+) -> dict[str, Any]:
     result: dict[
         str,
-        float,
+        Any,
     ] = {}
 
     atm = eligible.loc[
@@ -1013,6 +1030,14 @@ def _atm_iv_by_bucket(
             "is_atm"
         ]
     ]
+
+    result[
+        "atm_contract_count"
+    ] = int(
+        len(
+            atm
+        )
+    )
 
     for name, lower, upper in (
         DTE_BUCKETS
@@ -1027,13 +1052,24 @@ def _atm_iv_by_bucket(
                 upper,
         )
 
+        subset = atm.loc[
+            mask
+        ]
+
         result[
             f"atm_iv_median_{name}"
         ] = _median(
-            atm.loc[
-                mask,
-                "volatility",
+            subset[
+                "volatility"
             ]
+        )
+
+        result[
+            f"atm_contract_count_{name}"
+        ] = int(
+            len(
+                subset
+            )
         )
 
     return result
@@ -1084,6 +1120,262 @@ def _nearest_delta_iv(
             "volatility",
         ]
     )
+
+
+def _matched_delta_skews(
+    frame: pd.DataFrame,
+) -> list[float]:
+    if frame.empty:
+        return []
+
+    expiration_column = (
+        _expiration_column(
+            frame
+        )
+    )
+
+    skews: list[
+        float
+    ] = []
+
+    for _, expiration in frame.groupby(
+        expiration_column,
+        sort=True,
+        dropna=True,
+    ):
+        call_iv = (
+            _nearest_delta_iv(
+                expiration,
+                side="CALL",
+                target_delta=0.25,
+            )
+        )
+
+        put_iv = (
+            _nearest_delta_iv(
+                expiration,
+                side="PUT",
+                target_delta=-0.25,
+            )
+        )
+
+        if (
+            pd.isna(
+                call_iv
+            )
+            or pd.isna(
+                put_iv
+            )
+        ):
+            continue
+
+        skews.append(
+            float(
+                put_iv
+                - call_iv
+            )
+        )
+
+    return skews
+
+
+def _matched_atm_skews(
+    frame: pd.DataFrame,
+) -> list[float]:
+    if frame.empty:
+        return []
+
+    expiration_column = (
+        _expiration_column(
+            frame
+        )
+    )
+
+    atm = frame.loc[
+        frame[
+            "is_atm"
+        ]
+    ]
+
+    skews: list[
+        float
+    ] = []
+
+    for _, expiration in atm.groupby(
+        expiration_column,
+        sort=True,
+        dropna=True,
+    ):
+        call_iv = _median(
+            expiration.loc[
+                expiration[
+                    "put_call"
+                ]
+                == "CALL",
+                "volatility",
+            ]
+        )
+
+        put_iv = _median(
+            expiration.loc[
+                expiration[
+                    "put_call"
+                ]
+                == "PUT",
+                "volatility",
+            ]
+        )
+
+        if (
+            pd.isna(
+                call_iv
+            )
+            or pd.isna(
+                put_iv
+            )
+        ):
+            continue
+
+        skews.append(
+            float(
+                put_iv
+                - call_iv
+            )
+        )
+
+    return skews
+
+
+def _matched_skew_features(
+    eligible: pd.DataFrame,
+) -> dict[str, Any]:
+    result: dict[
+        str,
+        Any,
+    ] = {}
+
+    all_delta_skews = (
+        _matched_delta_skews(
+            eligible
+        )
+    )
+
+    all_atm_skews = (
+        _matched_atm_skews(
+            eligible
+        )
+    )
+
+    result[
+        "delta_25_put_call_iv_skew_matched_median"
+    ] = (
+        float(
+            np.median(
+                all_delta_skews
+            )
+        )
+        if all_delta_skews
+        else np.nan
+    )
+
+    result[
+        "delta_25_expiration_pair_count"
+    ] = int(
+        len(
+            all_delta_skews
+        )
+    )
+
+    result[
+        "atm_put_call_iv_skew_matched_median"
+    ] = (
+        float(
+            np.median(
+                all_atm_skews
+            )
+        )
+        if all_atm_skews
+        else np.nan
+    )
+
+    result[
+        "atm_expiration_pair_count"
+    ] = int(
+        len(
+            all_atm_skews
+        )
+    )
+
+    for name, lower, upper in (
+        DTE_BUCKETS
+    ):
+        mask = _dte_mask(
+            eligible[
+                "expiration_dte"
+            ],
+            lower=
+                lower,
+            upper=
+                upper,
+        )
+
+        bucket = eligible.loc[
+            mask
+        ]
+
+        delta_skews = (
+            _matched_delta_skews(
+                bucket
+            )
+        )
+
+        atm_skews = (
+            _matched_atm_skews(
+                bucket
+            )
+        )
+
+        result[
+            f"delta_25_put_call_iv_skew_{name}"
+        ] = (
+            float(
+                np.median(
+                    delta_skews
+                )
+            )
+            if delta_skews
+            else np.nan
+        )
+
+        result[
+            f"delta_25_pair_count_{name}"
+        ] = int(
+            len(
+                delta_skews
+            )
+        )
+
+        result[
+            f"atm_put_call_iv_skew_{name}"
+        ] = (
+            float(
+                np.median(
+                    atm_skews
+                )
+            )
+            if atm_skews
+            else np.nan
+        )
+
+        result[
+            f"atm_skew_pair_count_{name}"
+        ] = int(
+            len(
+                atm_skews
+            )
+        )
+
+    return result
 
 
 def _aggregate_symbol_features(
@@ -1182,22 +1474,6 @@ def _aggregate_symbol_features(
         atm_put[
             "volatility"
         ]
-    )
-
-    delta_25_call_iv = (
-        _nearest_delta_iv(
-            eligible,
-            side="CALL",
-            target_delta=0.25,
-        )
-    )
-
-    delta_25_put_iv = (
-        _nearest_delta_iv(
-            eligible,
-            side="PUT",
-            target_delta=-0.25,
-        )
     )
 
     features: dict[
@@ -1328,24 +1604,6 @@ def _aggregate_symbol_features(
         "atm_put_iv_median":
             atm_put_iv,
 
-        "atm_put_call_iv_skew":
-            (
-                atm_put_iv
-                - atm_call_iv
-            ),
-
-        "delta_25_call_iv":
-            delta_25_call_iv,
-
-        "delta_25_put_iv":
-            delta_25_put_iv,
-
-        "delta_25_put_call_iv_skew":
-            (
-                delta_25_put_iv
-                - delta_25_call_iv
-            ),
-
         "put_call_open_interest_ratio":
             _safe_ratio(
                 put_oi,
@@ -1415,6 +1673,12 @@ def _aggregate_symbol_features(
 
     features.update(
         _atm_iv_by_bucket(
+            eligible
+        )
+    )
+
+    features.update(
+        _matched_skew_features(
             eligible
         )
     )
