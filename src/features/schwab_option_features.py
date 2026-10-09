@@ -8,7 +8,7 @@ import numpy as np
 import pandas as pd
 
 
-FEATURE_SCHEMA_VERSION = "1.1.0"
+FEATURE_SCHEMA_VERSION = "1.2.0"
 
 DEFAULT_ATM_MONEYNESS_PCT = 2.0
 DEFAULT_MAX_QUOTE_AGE_MINUTES = 30.0
@@ -1039,6 +1039,22 @@ def _atm_iv_by_bucket(
         )
     )
 
+    expiration_column = (
+        _expiration_column(
+            eligible
+        )
+    )
+
+    result[
+        "atm_expiration_count"
+    ] = int(
+        atm[
+            expiration_column
+        ].nunique(
+            dropna=True
+        )
+    )
+
     for name, lower, upper in (
         DTE_BUCKETS
     ):
@@ -1069,6 +1085,16 @@ def _atm_iv_by_bucket(
         ] = int(
             len(
                 subset
+            )
+        )
+
+        result[
+            f"atm_expiration_count_{name}"
+        ] = int(
+            subset[
+                expiration_column
+            ].nunique(
+                dropna=True
             )
         )
 
