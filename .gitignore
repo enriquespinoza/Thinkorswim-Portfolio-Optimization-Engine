@@ -226,3 +226,6 @@ data/private/
 
 # Locally retained third-party source documents
 docs/source_materials/private/
+
+# Raw Schwab Market Data API captures (provider data; keep local)
+data/raw/schwab/
