@@ -165,7 +165,9 @@ def test_provider_intrinsic_and_percent_change_do_not_drive_features():
     assert spy["atm_call_iv_median"] == 20.0
     assert spy["atm_put_iv_median"] == 22.0
     assert spy["atm_contract_count"] == 2
+    assert spy["atm_expiration_count"] == 1
     assert spy["atm_contract_count_dte_31_90"] == 2
+    assert spy["atm_expiration_count_dte_31_90"] == 1
     assert spy["atm_put_call_iv_skew_matched_median"] == 2.0
     assert spy["atm_expiration_pair_count"] == 1
     assert spy["atm_put_call_iv_skew_dte_31_90"] == 2.0
