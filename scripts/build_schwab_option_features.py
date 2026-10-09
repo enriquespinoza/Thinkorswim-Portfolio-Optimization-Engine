@@ -639,16 +639,21 @@ def build_option_feature_artifacts(
         eligibility
     )
 
+    version_token = (
+        "v"
+        + FEATURE_SCHEMA_VERSION
+    )
+
     feature_filename = (
-        f"{run_id}__option_features.csv"
+        f"{run_id}__{version_token}__option_features.csv"
     )
 
     eligibility_filename = (
-        f"{run_id}__option_eligibility.csv"
+        f"{run_id}__{version_token}__option_eligibility.csv"
     )
 
     metadata_filename = (
-        f"{run_id}__option_feature_metadata.json"
+        f"{run_id}__{version_token}__option_feature_metadata.json"
     )
 
     feature_path = (
