@@ -10,6 +10,9 @@ from dotenv import load_dotenv
 
 from config.settings import PROJECT_ROOT
 
+from src.integrations.schwab.market_data_client import (
+    SchwabMarketDataClient,
+)
 from src.integrations.schwab.read_only_client import (
     SchwabReadOnlyClient,
 )
@@ -381,5 +384,39 @@ def create_read_only_schwab_client(
     )
 
     return SchwabReadOnlyClient(
+        raw_client
+    )
+
+
+def create_market_data_schwab_client(
+    config: SchwabAuthConfig,
+    auth_factory: (
+        Callable[..., Any]
+        | None
+    ) = None,
+) -> SchwabMarketDataClient:
+    """
+    Authenticate, then immediately place the raw
+    schwab-py client behind the market-data-only
+    research boundary.
+
+    Application research code should use this
+    function rather than retaining the raw client.
+
+    The returned wrapper exposes only Schwab
+    Market Data Production reads. It exposes no
+    account or order methods.
+    """
+    raw_client = (
+        create_authenticated_schwab_client(
+            config=
+                config,
+
+            auth_factory=
+                auth_factory,
+        )
+    )
+
+    return SchwabMarketDataClient(
         raw_client
     )
