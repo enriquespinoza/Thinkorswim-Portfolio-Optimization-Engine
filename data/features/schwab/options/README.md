@@ -82,3 +82,40 @@ The quality gate writes:
 <run_id>__<feature_schema>__option_feature_quality.csv
 <run_id>__<feature_schema>__option_feature_validation_metadata.json
 ```
+
+
+## Historical option-feature store
+
+Validated option-feature snapshots are appended to:
+
+```text
+data/features/schwab/options/history/option_feature_history_v1.csv
+```
+
+History v1 accepts only feature schema `1.2.0` under quality policy `1.0.0`.
+
+The composite history key is:
+
+```text
+capture_timestamp_utc
+run_id
+underlying_symbol
+feature_schema_version
+quality_policy_version
+```
+
+The append runner is idempotent. Re-appending an identical snapshot returns `EXISTS`; an existing primary key with different row content fails closed. The writer uses a lock file and atomic replacement to avoid partial history writes.
+
+Each appended row also records:
+
+- history schema version;
+- upstream input-validation ID;
+- source validated-feature SHA-256;
+- source validation-metadata SHA-256.
+
+Use:
+
+```bash
+./.venv/Scripts/python.exe scripts/append_schwab_option_feature_history.py --dry-run
+./.venv/Scripts/python.exe scripts/append_schwab_option_feature_history.py
+```
