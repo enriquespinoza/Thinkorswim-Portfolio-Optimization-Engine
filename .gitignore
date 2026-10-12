@@ -233,3 +233,12 @@ data/raw/schwab/
 # Generated scanner candidate handoff/history artifacts (keep local)
 data/incoming/scanner/
 data/history/scanner/
+
+
+# Local processed Schwab/scanner allocation working data
+data/processed/schwab/
+data/processed/scanner_allocations/
+
+# Transient scanner allocation build outputs; promote validated artifacts to reports/validation/
+reports/generated/scanner_allocations/
+reports/generated/scanner_allocations-validation/

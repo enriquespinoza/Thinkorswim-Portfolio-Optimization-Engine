@@ -64,6 +64,12 @@ SUPPORTED_DATASETS = (
 DEFAULT_OPTION_STRIKE_COUNT = 10
 DEFAULT_MARKET = "EQUITY"
 
+DEFAULT_PRICE_HISTORY_PERIOD_TYPE = "YEAR"
+DEFAULT_PRICE_HISTORY_PERIOD = "TWO_YEARS"
+DEFAULT_PRICE_HISTORY_FREQUENCY_TYPE = "DAILY"
+DEFAULT_PRICE_HISTORY_FREQUENCY = "DAILY"
+DEFAULT_PRICE_HISTORY_EXTENDED_HOURS = False
+
 DEFAULT_RAW_ROOT = (
     RAW_DATA_DIR
     / "schwab"
@@ -329,6 +335,11 @@ def capture_schwab_market_data(
     option_strike_count: int = DEFAULT_OPTION_STRIKE_COUNT,
     market: str = DEFAULT_MARKET,
     movers_index: str | None = None,
+    price_history_period_type: str = DEFAULT_PRICE_HISTORY_PERIOD_TYPE,
+    price_history_period: str = DEFAULT_PRICE_HISTORY_PERIOD,
+    price_history_frequency_type: str = DEFAULT_PRICE_HISTORY_FREQUENCY_TYPE,
+    price_history_frequency: str = DEFAULT_PRICE_HISTORY_FREQUENCY,
+    price_history_extended_hours: bool = DEFAULT_PRICE_HISTORY_EXTENDED_HOURS,
     clock=_utc_now,
 ) -> dict[str, Any]:
     """
@@ -465,7 +476,17 @@ def capture_schwab_market_data(
         for symbol in symbols:
             raw = (
                 ingestor.ingest_price_history(
-                    symbol
+                    symbol,
+                    period_type=
+                        price_history_period_type,
+                    period=
+                        price_history_period,
+                    frequency_type=
+                        price_history_frequency_type,
+                    frequency=
+                        price_history_frequency,
+                    need_extended_hours_data=
+                        price_history_extended_hours,
                 )
             )
 
@@ -709,6 +730,23 @@ def capture_schwab_market_data(
         "movers_index":
             movers_index,
 
+        "price_history_request": {
+            "period_type":
+                price_history_period_type,
+
+            "period":
+                price_history_period,
+
+            "frequency_type":
+                price_history_frequency_type,
+
+            "frequency":
+                price_history_frequency,
+
+            "need_extended_hours_data":
+                price_history_extended_hours,
+        },
+
         "artifact_count":
             len(
                 artifacts
@@ -811,6 +849,26 @@ def build_parser() -> argparse.ArgumentParser:
             "Schwab movers index/category, for example "
             "$SPX. Required only when movers is selected."
         ),
+    )
+
+    parser.add_argument(
+        "--price-history-period-type",
+        default=DEFAULT_PRICE_HISTORY_PERIOD_TYPE,
+    )
+
+    parser.add_argument(
+        "--price-history-period",
+        default=DEFAULT_PRICE_HISTORY_PERIOD,
+    )
+
+    parser.add_argument(
+        "--price-history-frequency-type",
+        default=DEFAULT_PRICE_HISTORY_FREQUENCY_TYPE,
+    )
+
+    parser.add_argument(
+        "--price-history-frequency",
+        default=DEFAULT_PRICE_HISTORY_FREQUENCY,
     )
 
     return parser
@@ -952,6 +1010,21 @@ def main() -> None:
 
             movers_index=
                 args.movers_index,
+
+            price_history_period_type=
+                args.price_history_period_type,
+
+            price_history_period=
+                args.price_history_period,
+
+            price_history_frequency_type=
+                args.price_history_frequency_type,
+
+            price_history_frequency=
+                args.price_history_frequency,
+
+            price_history_extended_hours=
+                False,
         )
     )
 
