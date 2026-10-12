@@ -109,3 +109,41 @@ def test_write_price_matrix_is_immutable(tmp_path: Path) -> None:
             output_path=output,
             expected_symbols=["AAA", "BBB"],
         )
+
+
+def test_price_matrix_rejects_multiple_observations_per_date(tmp_path: Path) -> None:
+    processed = tmp_path / "processed"
+    path = processed / "price_history" / "AAA.csv"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    frame = pd.DataFrame(
+        {
+            "datetime_utc": [
+                "2026-10-12T14:00:00+00:00",
+                "2026-10-12T15:00:00+00:00",
+            ],
+            "close": [100.0, 101.0],
+        }
+    )
+    frame.to_csv(path, index=False, lineterminator="\n")
+    summary = {
+        "run_id": "run-intraday",
+        "artifacts": [
+            {
+                "scope": "AAA",
+                "dataset": "price_history",
+                "normalized": {
+                    "relative_path": str(path.relative_to(processed)).replace("\\", "/"),
+                    "normalized_sha256": sha256_file(path),
+                },
+            }
+        ],
+    }
+    summary_path = tmp_path / "summary.json"
+    summary_path.write_text(json.dumps(summary), encoding="utf-8")
+
+    with pytest.raises(ValueError, match="multiple observations per calendar date"):
+        build_price_matrix_from_capture_summary(
+            summary_path=summary_path,
+            processed_root=processed,
+            expected_symbols=["AAA"],
+        )
