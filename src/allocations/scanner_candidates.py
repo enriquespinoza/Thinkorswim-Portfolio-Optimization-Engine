@@ -111,13 +111,19 @@ def prepare_return_matrix(
 
     selected = prices.loc[:, symbols].copy()
     selected.index = pd.to_datetime(selected.index)
-    cutoff = pd.Timestamp(as_of_session)
-    if cutoff.tzinfo is not None:
-        cutoff = cutoff.tz_localize(None)
     index = pd.DatetimeIndex(selected.index)
     if index.tz is not None:
         selected.index = index.tz_convert("UTC").tz_localize(None)
 
+    session_dates = pd.DatetimeIndex(selected.index).normalize()
+    if session_dates.duplicated().any():
+        raise ValueError(
+            "Price matrix contains multiple observations per calendar date; "
+            "daily price history is required"
+        )
+
+    selected.index = session_dates
+    cutoff = pd.Timestamp(as_of_session).normalize()
     selected = selected.loc[selected.index <= cutoff]
     selected = selected.apply(pd.to_numeric, errors="coerce")
     selected = selected.replace([np.inf, -np.inf], np.nan).dropna(how="any")
