@@ -2,6 +2,11 @@ from __future__ import annotations
 
 import argparse
 from pathlib import Path
+import sys
+
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
 
 from config.settings import DATA_DIR, GENERATED_REPORTS_DIR
 from src.allocations.scanner_candidates import write_scanner_candidate_allocation
