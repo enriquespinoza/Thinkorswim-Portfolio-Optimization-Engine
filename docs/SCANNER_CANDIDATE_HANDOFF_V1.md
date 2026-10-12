@@ -166,3 +166,44 @@ scripts/ingest_scanner_candidates.py
 ```
 
 It should validate this contract, verify hashes and version fields, enforce unique candidate keys, and append immutable scanner candidate history without recomputing scanner scores.
+
+
+## Consumer ingestion
+
+The Portfolio Optimization Engine consumes a completed handoff with:
+
+```bash
+./.venv/Scripts/python.exe scripts/ingest_scanner_candidates.py \
+  --candidate-csv <candidate_csv> \
+  --candidate-manifest <candidate_manifest> \
+  --dry-run
+```
+
+After the dry run passes, remove `--dry-run` to append the snapshot to:
+
+```text
+data/history/scanner/scanner_candidate_history_v1.csv
+```
+
+Candidate-history schema v1.0.0 uses this composite key:
+
+```text
+scanner_snapshot_sha256
+symbol
+handoff_contract_version
+```
+
+The consumer fails closed on:
+
+- incompatible handoff, alpha-spec, provider, or selection-policy versions;
+- candidate CSV hash mismatch;
+- row-count mismatch between the CSV and manifest;
+- altered or missing required columns;
+- duplicate symbols or ranks;
+- non-contiguous top-rank sets;
+- ineligible candidates;
+- invalid scores, percentiles, prices, timestamps, or primary-signal names;
+- history schema drift;
+- an existing history key whose row contents differ from the incoming handoff.
+
+Re-ingesting the same immutable handoff returns `EXISTS` and appends zero rows.
