@@ -229,3 +229,7 @@ docs/source_materials/private/
 
 # Raw Schwab Market Data API captures (provider data; keep local)
 data/raw/schwab/
+
+# Generated scanner candidate handoff/history artifacts (keep local)
+data/incoming/scanner/
+data/history/scanner/
