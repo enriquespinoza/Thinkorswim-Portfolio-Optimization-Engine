@@ -69,8 +69,11 @@ class FakeSchwabClient:
 
         class Period(Enum):
             ONE_DAY = 1
+            TWO_DAYS = 2
             ONE_MONTH = 1
+            TWO_MONTHS = 2
             ONE_YEAR = 1
+            TWO_YEARS = 2
             TWENTY_YEARS = 20
 
         class FrequencyType(Enum):
@@ -84,6 +87,9 @@ class FakeSchwabClient:
             EVERY_FIVE_MINUTES = 5
             EVERY_FIFTEEN_MINUTES = 15
             EVERY_THIRTY_MINUTES = 30
+            DAILY = 1
+            WEEKLY = 1
+            MONTHLY = 1
 
     class Movers:
         class Index(Enum):
@@ -647,3 +653,23 @@ def test_wrapper_exposes_no_account_or_order_methods():
             client,
             method_name,
         )
+
+
+def test_price_history_resolves_enum_alias_names() -> None:
+    broker = FakeSchwabClient()
+    client = SchwabMarketDataClient(broker)
+
+    client.get_price_history(
+        "spy",
+        period_type="YEAR",
+        period="TWO_YEARS",
+        frequency_type="DAILY",
+        frequency="DAILY",
+        need_extended_hours_data=False,
+    )
+
+    assert broker.last_call[2] == broker.PriceHistory.PeriodType.YEAR
+    assert broker.last_call[3] == broker.PriceHistory.Period.TWO_YEARS
+    assert broker.last_call[4] == broker.PriceHistory.FrequencyType.DAILY
+    assert broker.last_call[5] == broker.PriceHistory.Frequency.DAILY
+    assert broker.last_call[8] is False
