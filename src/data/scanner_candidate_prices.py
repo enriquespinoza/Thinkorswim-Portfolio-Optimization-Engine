@@ -80,12 +80,24 @@ def build_price_matrix_from_capture_summary(
         if not valid.any():
             raise ValueError(f"{scope} has no usable price-history rows")
 
+        session_dates = (
+            timestamps.loc[valid]
+            .dt.tz_convert("UTC")
+            .dt.tz_localize(None)
+            .dt.normalize()
+        )
+
+        if session_dates.duplicated().any():
+            raise ValueError(
+                f"{scope} contains multiple observations per calendar date; "
+                "daily price history is required"
+            )
+
         values = pd.Series(
             close.loc[valid].to_numpy(dtype=float),
-            index=timestamps.loc[valid].dt.tz_convert("UTC").dt.tz_localize(None),
+            index=session_dates,
             name=scope,
-        )
-        values = values[~values.index.duplicated(keep="last")].sort_index()
+        ).sort_index()
         series_by_symbol[scope] = values
         artifact_hashes[scope] = actual_sha
 
