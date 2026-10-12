@@ -687,7 +687,10 @@ def _validate_candidate_frame(
         or not (
             ranks
             .map(
-                float.is_integer
+                lambda value:
+                    float(
+                        value
+                    ).is_integer()
             )
             .all()
         )
