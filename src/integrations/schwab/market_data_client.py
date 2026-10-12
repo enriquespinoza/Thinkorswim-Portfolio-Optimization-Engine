@@ -193,6 +193,8 @@ class SchwabMarketDataClient:
         if isinstance(value, enum_class):
             return value
 
+        members = enum_class.__members__
+
         if isinstance(value, str):
             candidate = value.strip()
 
@@ -203,25 +205,25 @@ class SchwabMarketDataClient:
 
             candidate_upper = candidate.upper()
 
-            for member in enum_class:
-                if member.name.upper() == candidate_upper:
+            for name, member in members.items():
+                if name.upper() == candidate_upper:
                     return member
 
                 if str(member.value).upper() == candidate_upper:
                     return member
         else:
-            for member in enum_class:
+            for member in members.values():
                 if member.value == value:
                     return member
 
         choices = sorted(
             {
-                member.name
-                for member in enum_class
+                name
+                for name in members
             }
             | {
                 str(member.value)
-                for member in enum_class
+                for member in members.values()
             }
         )
 
