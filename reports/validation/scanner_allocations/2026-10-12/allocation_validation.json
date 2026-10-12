@@ -1,0 +1,32 @@
+{
+  "allocation_contract_version": "scanner-candidate-allocation-v1",
+  "as_of_session": "2026-10-12",
+  "purpose": "pipeline_integration_validation",
+  "formal_holdout_observation": false,
+  "formal_holdout_cadence": "W-FRI",
+  "invalid_artifact": {
+    "candidate_allocation_sha256": "ca952212c680adad87d29b9d43658c044b32cca4c7a8351d7845348a846fe13b",
+    "portfolio_volatility": 0.00555395238024299,
+    "status": "INVALID_FOR_ALLOCATION_USE",
+    "reason": "Schwab price-history cadence was not explicitly constrained to daily candles, while the allocator interpreted each observation as a daily close."
+  },
+  "validated_artifact": {
+    "candidate_allocation_sha256": "9e4931b5ab054d0a1c452d996bb58ed4a78dcb707dbc49b33b17c5c31e1b9a20",
+    "portfolio_volatility": 0.2623507445784795,
+    "ledoit_wolf_shrinkage": 0.3110627650948036,
+    "weights_sum": 1.0,
+    "status": "VALIDATED"
+  },
+  "validation_controls": {
+    "schwab_period_type": "YEAR",
+    "schwab_period": "TWO_YEARS",
+    "schwab_frequency_type": "DAILY",
+    "schwab_frequency": "DAILY",
+    "extended_hours": false,
+    "daily_cadence_guardrail": true,
+    "same_calendar_date_duplicate_rejection": true,
+    "as_of_session_date_normalization": true
+  },
+  "conclusion": "The original 2026-10-12 allocation is retained for audit history but must not be used for allocation decisions. The corrected allocation was produced from explicit daily Schwab price history and passed the patched cadence validation pipeline. Because 2026-10-12 was a Monday, this record validates integration only and is not the first formal W-FRI holdout observation.",
+  "status": "VALIDATED"
+}
