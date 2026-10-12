@@ -163,3 +163,36 @@ def test_allocation_requires_sufficient_synchronized_history() -> None:
             source_candidate_history_sha256="e" * 64,
             source_prices_sha256="f" * 64,
         )
+
+
+def test_prepare_return_matrix_includes_as_of_session() -> None:
+    history = _candidate_history()
+    prices = _prices()
+
+    allocation, manifest = build_scanner_candidate_allocation(
+        candidate_history=history,
+        prices=prices,
+        as_of_session="2026-10-12",
+        source_candidate_history_sha256="e" * 64,
+        source_prices_sha256="f" * 64,
+    )
+
+    assert manifest["as_of_session"] == "2026-10-12"
+    assert len(allocation) == 20
+
+
+def test_allocation_rejects_intraday_price_matrix() -> None:
+    history = _candidate_history()
+    base = _prices()
+    extra = base.iloc[[-1]].copy()
+    extra.index = [pd.Timestamp("2026-10-12 15:00:00")]
+    prices = pd.concat([base, extra]).sort_index()
+
+    with pytest.raises(ValueError, match="multiple observations per calendar date"):
+        build_scanner_candidate_allocation(
+            candidate_history=history,
+            prices=prices,
+            as_of_session="2026-10-12",
+            source_candidate_history_sha256="e" * 64,
+            source_prices_sha256="f" * 64,
+        )
