@@ -39,6 +39,10 @@ reference_price_source
 portfolio_capital
 target_dollar_value
 target_shares
+target_share_notional
+realized_target_weight
+weight_rounding_error
+target_status
 current_position
 share_delta
 trade_side
@@ -56,6 +60,31 @@ floor(portfolio_capital * approved_target_weight / reference_price)
 ```
 
 No fractional shares, margin, or short targets are introduced by this contract.
+
+Builder version `1.1.0` adds execution accounting without changing the
+`portfolio-target-handoff-v1` contract. The additional fields distinguish the
+optimizer's approved weight from what can actually be represented in whole shares:
+
+- `target_share_notional = target_shares * reference_price`
+- `realized_target_weight = target_share_notional / portfolio_capital`
+- `weight_rounding_error = approved_target_weight - realized_target_weight`
+
+`target_status` is one of:
+
+```text
+TARGETED
+ZERO_WEIGHT
+ROUNDING_TO_ZERO
+EXIT
+```
+
+`ROUNDING_TO_ZERO` means the optimizer approved a positive target weight but the
+allocated dollar amount is smaller than the price of one whole share. It remains
+distinct from a true optimizer zero weight. `EXIT` is used when the managed
+sleeve currently holds shares but the approved target weight is zero.
+
+The manifest records status counts, realized weight sum, total weight-rounding
+error, target notional, and residual cash.
 
 ## Safety boundary
 
@@ -82,5 +111,12 @@ responsibilities.
   --execution-state DRY_RUN
 ```
 
-The writer is immutable by session and refuses to overwrite an existing target
-artifact.
+The writer is immutable. Builder outputs are versioned beneath the session so a
+new accounting implementation can coexist with a previously generated artifact:
+
+```text
+reports/generated/execution_targets/<session>/<target_builder_version>/
+```
+
+The writer refuses to overwrite an existing artifact for the same session and
+builder version.
