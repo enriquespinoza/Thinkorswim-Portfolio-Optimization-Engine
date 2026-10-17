@@ -81,22 +81,105 @@ def test_build_execution_targets_includes_dropped_position() -> None:
     ccc = targets.loc[targets["symbol"].eq("CCC")].iloc[0]
 
     assert aaa["target_shares"] == 60
+    assert aaa["target_share_notional"] == 6000.0
+    assert aaa["realized_target_weight"] == 0.60
+    assert aaa["weight_rounding_error"] == 0.0
+    assert aaa["target_status"] == "TARGETED"
     assert aaa["current_position"] == 40
     assert aaa["share_delta"] == 20
     assert aaa["trade_side"] == "BUY"
 
     assert bbb["target_shares"] == 20
+    assert bbb["target_share_notional"] == 4000.0
+    assert bbb["realized_target_weight"] == 0.40
+    assert bbb["weight_rounding_error"] == 0.0
+    assert bbb["target_status"] == "TARGETED"
     assert bbb["current_position"] == 0
     assert bbb["share_delta"] == 20
     assert bbb["trade_side"] == "BUY"
 
     assert ccc["approved_target_weight"] == 0.0
     assert ccc["target_shares"] == 0
+    assert ccc["target_share_notional"] == 0.0
+    assert ccc["realized_target_weight"] == 0.0
+    assert ccc["weight_rounding_error"] == 0.0
+    assert ccc["target_status"] == "EXIT"
     assert ccc["share_delta"] == -5
     assert ccc["trade_side"] == "SELL"
 
     assert manifest["broker_submission_permitted"] is False
     assert manifest["execution_state"] == "DRY_RUN"
+    assert manifest["targeted_count"] == 2
+    assert manifest["exit_count"] == 1
+    assert manifest["rounding_to_zero_count"] == 0
+    assert manifest["realized_weight_sum"] == 1.0
+    assert manifest["total_weight_rounding_error"] == 0.0
+
+
+
+
+def test_rounding_to_zero_is_distinct_from_zero_weight() -> None:
+    allocation = pd.DataFrame(
+        [
+            {
+                "allocation_contract_version": "scanner-candidate-allocation-v1",
+                "as_of_session": "2026-10-16",
+                "scanner_snapshot_sha256": "a" * 64,
+                "symbol": "HIGH",
+                "scanner_rank": 1,
+                "close": 1_000.0,
+                "target_weight": 0.01,
+            },
+            {
+                "allocation_contract_version": "scanner-candidate-allocation-v1",
+                "as_of_session": "2026-10-16",
+                "scanner_snapshot_sha256": "a" * 64,
+                "symbol": "ZERO",
+                "scanner_rank": 2,
+                "close": 100.0,
+                "target_weight": 0.0,
+            },
+            {
+                "allocation_contract_version": "scanner-candidate-allocation-v1",
+                "as_of_session": "2026-10-16",
+                "scanner_snapshot_sha256": "a" * 64,
+                "symbol": "CORE",
+                "scanner_rank": 3,
+                "close": 100.0,
+                "target_weight": 0.99,
+            },
+        ]
+    )
+
+    targets, manifest = build_execution_safe_targets(
+        allocation=allocation,
+        allocation_manifest=_manifest("b" * 64),
+        allocation_sha256="b" * 64,
+        allocation_manifest_sha256="c" * 64,
+        positions=pd.DataFrame(columns=["symbol", "current_position", "reference_price"]),
+        portfolio_capital=10_000.0,
+        execution_state="DRY_RUN",
+    )
+
+    high = targets.loc[targets["symbol"].eq("HIGH")].iloc[0]
+    zero = targets.loc[targets["symbol"].eq("ZERO")].iloc[0]
+
+    assert high["approved_target_weight"] == 0.01
+    assert high["target_shares"] == 0
+    assert high["target_share_notional"] == 0.0
+    assert high["realized_target_weight"] == 0.0
+    assert high["weight_rounding_error"] == 0.01
+    assert high["target_status"] == "ROUNDING_TO_ZERO"
+    assert high["trade_side"] == "HOLD"
+
+    assert zero["approved_target_weight"] == 0.0
+    assert zero["target_status"] == "ZERO_WEIGHT"
+    assert zero["trade_side"] == "HOLD"
+
+    assert manifest["rounding_to_zero_count"] == 1
+    assert manifest["zero_weight_count"] == 1
+    assert manifest["realized_weight_sum"] == 0.99
+    assert manifest["total_weight_rounding_error"] == pytest.approx(0.01)
 
 
 def test_reference_price_uses_allocation_for_target_names() -> None:
@@ -167,6 +250,8 @@ def test_write_execution_target_is_immutable(tmp_path: Path) -> None:
     assert output_manifest["handoff_contract_version"] == PORTFOLIO_TARGET_HANDOFF_VERSION
     assert output_manifest["execution_safe_targets_sha256"] == sha256_file(target_path)
     assert output_manifest["positions_sha256"] == sha256_file(positions_path)
+    assert output_manifest["target_builder_version"] == "1.1.0"
+    assert target_path.parent.name == "1.1.0"
 
     with pytest.raises(FileExistsError, match="refusing to overwrite"):
         write_execution_safe_targets(
