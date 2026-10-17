@@ -1,0 +1,23 @@
+{
+  "allocation_contract_version": "scanner-candidate-allocation-v1",
+  "as_of_session": "2026-10-16",
+  "candidate_allocation_sha256": "e3f688b52b1cae94b4413f05a01bd1a3be9c2566c0b9fbb360a9edcbe6b4c95f",
+  "candidate_count": 20,
+  "candidate_snapshot_sha256": "49849ae13d944893b2f3204df7a1e20c122cfb2bf152ff8a1e1005680f7ee3a7",
+  "covariance_estimator": "ledoit_wolf",
+  "generated_at_utc": "2026-10-17T01:39:16.953388+00:00",
+  "immutable": true,
+  "ledoit_wolf_shrinkage": 0.28736524757500637,
+  "lookback_returns": 252,
+  "max_weight": 0.1,
+  "min_weight": 0.0,
+  "optimizer_name": "minimum_variance_ledoit_wolf",
+  "optimizer_version": "1.0.0",
+  "portfolio_volatility": 0.28379701961736437,
+  "scanner_snapshot_sha256": "1cfed535f8cd1d2d8c8416997ef339b93e56e341da4f1630bc77ff72d8a377ac",
+  "source_candidate_csv_sha256": "93d4f125ae6aa8cf04866d6718d36a2d85603e4de772ab7000beb58ce7af7753",
+  "source_candidate_history_sha256": "3e9ba5364b3e466a6e698b93a583642a0508d17703bd38e52b90f10bb8eb1615",
+  "source_candidate_manifest_sha256": "9af8f2471a29af308f4d49fad41cb7d712c162c957ec5795bee5f98a5334ffa7",
+  "source_prices_sha256": "f5c3f0e5f2709c14875e706cce8991cbda142f7c12d6225cdf945357ac005220",
+  "weights_sum": 0.9999999999999999
+}
