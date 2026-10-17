@@ -6,7 +6,7 @@ from config.scanner_allocation import (
 
 
 PORTFOLIO_TARGET_HANDOFF_VERSION = "portfolio-target-handoff-v1"
-TARGET_BUILDER_VERSION = "1.0.0"
+TARGET_BUILDER_VERSION = "1.1.0"
 
 EXPECTED_ALLOCATION_CONTRACT_VERSION = (
     ALLOCATION_CONTRACT_VERSION
@@ -28,6 +28,13 @@ SHARE_ROUNDING_POLICY = (
     "floor_nonnegative_whole_shares"
 )
 
+TARGET_STATUSES = (
+    "TARGETED",
+    "ZERO_WEIGHT",
+    "ROUNDING_TO_ZERO",
+    "EXIT",
+)
+
 TARGET_COLUMNS = (
     "handoff_contract_version",
     "target_builder_version",
@@ -44,6 +51,10 @@ TARGET_COLUMNS = (
     "portfolio_capital",
     "target_dollar_value",
     "target_shares",
+    "target_share_notional",
+    "realized_target_weight",
+    "weight_rounding_error",
+    "target_status",
     "current_position",
     "share_delta",
     "trade_side",
