@@ -1,0 +1,51 @@
+from __future__ import annotations
+
+from config.scanner_allocation import (
+    ALLOCATION_CONTRACT_VERSION,
+)
+
+
+PORTFOLIO_TARGET_HANDOFF_VERSION = "portfolio-target-handoff-v1"
+TARGET_BUILDER_VERSION = "1.0.0"
+
+EXPECTED_ALLOCATION_CONTRACT_VERSION = (
+    ALLOCATION_CONTRACT_VERSION
+)
+
+EXECUTION_STATES = (
+    "DRY_RUN",
+    "PAPER",
+)
+
+REFERENCE_PRICE_SOURCE_ALLOCATION = (
+    "scanner_allocation_close"
+)
+REFERENCE_PRICE_SOURCE_POSITION = (
+    "position_snapshot"
+)
+
+SHARE_ROUNDING_POLICY = (
+    "floor_nonnegative_whole_shares"
+)
+
+TARGET_COLUMNS = (
+    "handoff_contract_version",
+    "target_builder_version",
+    "as_of_session",
+    "allocation_contract_version",
+    "allocation_sha256",
+    "allocation_manifest_sha256",
+    "scanner_snapshot_sha256",
+    "symbol",
+    "scanner_rank",
+    "approved_target_weight",
+    "reference_price",
+    "reference_price_source",
+    "portfolio_capital",
+    "target_dollar_value",
+    "target_shares",
+    "current_position",
+    "share_delta",
+    "trade_side",
+    "execution_state",
+)
