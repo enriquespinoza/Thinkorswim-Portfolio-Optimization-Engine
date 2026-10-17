@@ -200,7 +200,17 @@ def build_execution_safe_targets(
 
         target_dollar_value = float(portfolio_capital) * target_weight
         target_shares = math.floor(target_dollar_value / reference_price)
+        target_share_notional = float(target_shares) * reference_price
+        realized_target_weight = target_share_notional / float(portfolio_capital)
+        weight_rounding_error = target_weight - realized_target_weight
         share_delta = target_shares - current_position
+
+        if target_weight <= 1e-15:
+            target_status = "EXIT" if current_position > 0 else "ZERO_WEIGHT"
+        elif target_shares == 0:
+            target_status = "ROUNDING_TO_ZERO"
+        else:
+            target_status = "TARGETED"
 
         if share_delta > 0:
             trade_side = "BUY"
@@ -226,6 +236,10 @@ def build_execution_safe_targets(
                 "portfolio_capital": float(portfolio_capital),
                 "target_dollar_value": target_dollar_value,
                 "target_shares": int(target_shares),
+                "target_share_notional": target_share_notional,
+                "realized_target_weight": realized_target_weight,
+                "weight_rounding_error": weight_rounding_error,
+                "target_status": target_status,
                 "current_position": int(current_position),
                 "share_delta": int(share_delta),
                 "trade_side": trade_side,
@@ -234,10 +248,10 @@ def build_execution_safe_targets(
         )
 
     targets = pd.DataFrame(rows, columns=TARGET_COLUMNS)
-    target_notional = float(
-        (targets["target_shares"].astype(float) * targets["reference_price"]).sum()
-    )
+    target_notional = float(targets["target_share_notional"].sum())
     residual_cash = float(portfolio_capital) - target_notional
+    realized_weight_sum = float(targets["realized_target_weight"].sum())
+    total_weight_rounding_error = float(targets["weight_rounding_error"].sum())
 
     manifest = {
         "handoff_contract_version": PORTFOLIO_TARGET_HANDOFF_VERSION,
@@ -252,11 +266,19 @@ def build_execution_safe_targets(
         "share_rounding_policy": SHARE_ROUNDING_POLICY,
         "row_count": int(len(targets)),
         "target_symbol_count": int((targets["approved_target_weight"] > 0).sum()),
+        "targeted_count": int((targets["target_status"] == "TARGETED").sum()),
+        "zero_weight_count": int((targets["target_status"] == "ZERO_WEIGHT").sum()),
+        "rounding_to_zero_count": int(
+            (targets["target_status"] == "ROUNDING_TO_ZERO").sum()
+        ),
+        "exit_count": int((targets["target_status"] == "EXIT").sum()),
         "buy_count": int((targets["trade_side"] == "BUY").sum()),
         "sell_count": int((targets["trade_side"] == "SELL").sum()),
         "hold_count": int((targets["trade_side"] == "HOLD").sum()),
         "target_notional": target_notional,
         "residual_cash": residual_cash,
+        "realized_weight_sum": realized_weight_sum,
+        "total_weight_rounding_error": total_weight_rounding_error,
         "generated_at_utc": datetime.now(timezone.utc).isoformat(),
         "immutable": True,
         "broker_submission_permitted": False,
@@ -300,7 +322,11 @@ def write_execution_safe_targets(
         execution_state=execution_state,
     )
 
-    output_dir = Path(output_root) / str(manifest["as_of_session"])
+    output_dir = (
+        Path(output_root)
+        / str(manifest["as_of_session"])
+        / str(manifest["target_builder_version"])
+    )
     target_path = output_dir / "execution_safe_targets.csv"
     manifest_path = output_dir / "manifest.json"
 
