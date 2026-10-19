@@ -90,6 +90,37 @@ def _utc_now() -> datetime:
     )
 
 
+def _parse_utc_datetime_arg(
+    value: str,
+) -> datetime:
+    text = str(value).strip()
+
+    if text.endswith("Z"):
+        text = (
+            text[:-1]
+            + "+00:00"
+        )
+
+    try:
+        parsed = datetime.fromisoformat(
+            text
+        )
+
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError(
+            "Expected an ISO-8601 date/datetime."
+        ) from exc
+
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(
+            tzinfo=timezone.utc
+        )
+
+    return parsed.astimezone(
+        timezone.utc
+    )
+
+
 def _normalize_symbols(
     symbols: Iterable[str],
 ) -> tuple[str, ...]:
@@ -340,6 +371,8 @@ def capture_schwab_market_data(
     price_history_frequency_type: str = DEFAULT_PRICE_HISTORY_FREQUENCY_TYPE,
     price_history_frequency: str = DEFAULT_PRICE_HISTORY_FREQUENCY,
     price_history_extended_hours: bool = DEFAULT_PRICE_HISTORY_EXTENDED_HOURS,
+    price_history_start_datetime: datetime | None = None,
+    price_history_end_datetime: datetime | None = None,
     clock=_utc_now,
 ) -> dict[str, Any]:
     """
@@ -390,6 +423,56 @@ def capture_schwab_market_data(
             "movers_index is required when the "
             "movers dataset is selected."
         )
+
+    if (
+        (price_history_start_datetime is None)
+        != (price_history_end_datetime is None)
+    ):
+        raise ValueError(
+            "Explicit price-history capture requires both "
+            "start and end datetimes."
+        )
+
+    if price_history_start_datetime is not None:
+        if price_history_start_datetime.tzinfo is None:
+            price_history_start_datetime = (
+                price_history_start_datetime.replace(
+                    tzinfo=timezone.utc
+                )
+            )
+        else:
+            price_history_start_datetime = (
+                price_history_start_datetime.astimezone(
+                    timezone.utc
+                )
+            )
+
+        if price_history_end_datetime.tzinfo is None:
+            price_history_end_datetime = (
+                price_history_end_datetime.replace(
+                    tzinfo=timezone.utc
+                )
+            )
+        else:
+            price_history_end_datetime = (
+                price_history_end_datetime.astimezone(
+                    timezone.utc
+                )
+            )
+
+        if (
+            price_history_start_datetime
+            >= price_history_end_datetime
+        ):
+            raise ValueError(
+                "price_history_start_datetime must be "
+                "earlier than price_history_end_datetime."
+            )
+
+    explicit_price_history_window = (
+        price_history_start_datetime
+        is not None
+    )
 
     started_at = clock()
 
@@ -480,11 +563,19 @@ def capture_schwab_market_data(
                     period_type=
                         price_history_period_type,
                     period=
-                        price_history_period,
+                        (
+                            None
+                            if explicit_price_history_window
+                            else price_history_period
+                        ),
                     frequency_type=
                         price_history_frequency_type,
                     frequency=
                         price_history_frequency,
+                    start_datetime=
+                        price_history_start_datetime,
+                    end_datetime=
+                        price_history_end_datetime,
                     need_extended_hours_data=
                         price_history_extended_hours,
                 )
@@ -735,13 +826,33 @@ def capture_schwab_market_data(
                 price_history_period_type,
 
             "period":
-                price_history_period,
+                (
+                    None
+                    if explicit_price_history_window
+                    else price_history_period
+                ),
 
             "frequency_type":
                 price_history_frequency_type,
 
             "frequency":
                 price_history_frequency,
+
+            "start_datetime_utc":
+                (
+                    price_history_start_datetime.isoformat()
+                    if price_history_start_datetime
+                    is not None
+                    else None
+                ),
+
+            "end_datetime_utc":
+                (
+                    price_history_end_datetime.isoformat()
+                    if price_history_end_datetime
+                    is not None
+                    else None
+                ),
 
             "need_extended_hours_data":
                 price_history_extended_hours,
@@ -869,6 +980,18 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--price-history-frequency",
         default=DEFAULT_PRICE_HISTORY_FREQUENCY,
+    )
+
+    parser.add_argument(
+        "--price-history-start-datetime",
+        type=_parse_utc_datetime_arg,
+        default=None,
+    )
+
+    parser.add_argument(
+        "--price-history-end-datetime",
+        type=_parse_utc_datetime_arg,
+        default=None,
     )
 
     return parser
@@ -1025,6 +1148,12 @@ def main() -> None:
 
             price_history_extended_hours=
                 False,
+
+            price_history_start_datetime=
+                args.price_history_start_datetime,
+
+            price_history_end_datetime=
+                args.price_history_end_datetime,
         )
     )
 
