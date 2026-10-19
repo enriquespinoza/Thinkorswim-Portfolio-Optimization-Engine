@@ -242,3 +242,11 @@ data/processed/scanner_allocations/
 # Transient scanner allocation build outputs; promote validated artifacts to reports/validation/
 reports/generated/scanner_allocations/
 reports/generated/scanner_allocations-validation/
+
+# Forward/generated optimizer working artifacts
+data/forward/
+
+# Transient execution/scanner price build outputs
+# Promote validated artifacts to reports/validation/
+reports/generated/execution_targets/
+reports/generated/scanner_candidate_prices/
