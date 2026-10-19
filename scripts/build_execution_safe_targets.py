@@ -33,7 +33,23 @@ def build_parser() -> argparse.ArgumentParser:
             "symbol,current_position,reference_price"
         ),
     )
-    parser.add_argument("--portfolio-capital", type=float, required=True)
+    parser.add_argument(
+        "--positions-manifest",
+        type=Path,
+        help=(
+            "Optional paper-position manifest. When supplied, the builder "
+            "verifies the positions CSV SHA/state lineage and can derive "
+            "portfolio capital from the manifest."
+        ),
+    )
+    parser.add_argument(
+        "--portfolio-capital",
+        type=float,
+        help=(
+            "Portfolio capital. Optional when --positions-manifest provides "
+            "a verified portfolio_capital value."
+        ),
+    )
     parser.add_argument(
         "--execution-state",
         choices=("DRY_RUN", "PAPER"),
@@ -53,6 +69,7 @@ def main() -> None:
         allocation_path=args.allocation_csv,
         allocation_manifest_path=args.allocation_manifest,
         positions_path=args.positions_csv,
+        positions_manifest_path=args.positions_manifest,
         portfolio_capital=args.portfolio_capital,
         execution_state=args.execution_state,
         output_root=args.output_root,
@@ -66,6 +83,13 @@ def main() -> None:
     print("Handoff contract:", manifest["handoff_contract_version"])
     print("Execution state:", manifest["execution_state"])
     print("Portfolio capital:", manifest["portfolio_capital"])
+    if manifest.get("paper_state_sha256"):
+        print("Paper state version:", manifest["paper_state_version"])
+        print("Paper state SHA-256:", manifest["paper_state_sha256"])
+        print(
+            "Position market snapshot SHA-256:",
+            manifest["position_market_snapshot_sha256"],
+        )
     print("Rows:", manifest["row_count"])
     print("Target symbols:", manifest["target_symbol_count"])
     print("Targeted:", manifest["targeted_count"])

@@ -250,8 +250,8 @@ def test_write_execution_target_is_immutable(tmp_path: Path) -> None:
     assert output_manifest["handoff_contract_version"] == PORTFOLIO_TARGET_HANDOFF_VERSION
     assert output_manifest["execution_safe_targets_sha256"] == sha256_file(target_path)
     assert output_manifest["positions_sha256"] == sha256_file(positions_path)
-    assert output_manifest["target_builder_version"] == "1.1.0"
-    assert target_path.parent.name == "1.1.0"
+    assert output_manifest["target_builder_version"] == "1.2.0"
+    assert target_path.parent.name == "1.2.0"
 
     with pytest.raises(FileExistsError, match="refusing to overwrite"):
         write_execution_safe_targets(
@@ -261,4 +261,150 @@ def test_write_execution_target_is_immutable(tmp_path: Path) -> None:
             portfolio_capital=10_000.0,
             execution_state="DRY_RUN",
             output_root=output_root,
+        )
+
+
+
+def test_write_execution_target_from_verified_paper_positions_manifest(
+    tmp_path: Path,
+) -> None:
+    allocation_path = tmp_path / "candidate_allocation.csv"
+    allocation_manifest_path = tmp_path / "allocation_manifest.json"
+    positions_path = tmp_path / "managed_sleeve_positions.csv"
+    positions_manifest_path = tmp_path / "positions_manifest.json"
+    output_root = tmp_path / "out"
+
+    _allocation().to_csv(
+        allocation_path,
+        index=False,
+        lineterminator="\n",
+    )
+    allocation_sha = sha256_file(allocation_path)
+    allocation_manifest_path.write_text(
+        json.dumps(
+            _manifest(allocation_sha),
+            indent=2,
+            sort_keys=True,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    _positions().to_csv(
+        positions_path,
+        index=False,
+        lineterminator="\n",
+    )
+    positions_sha = sha256_file(positions_path)
+
+    positions_manifest = {
+        "position_snapshot_contract":
+            "paper-optimizer-position-snapshot-v1",
+        "generated_at_utc":
+            "2026-10-19T18:00:00+00:00",
+        "immutable": True,
+        "broker_submission_permitted": False,
+        "paper_state_version": 2,
+        "paper_state_sha256": "d" * 64,
+        "paper_previous_state_sha256": "e" * 64,
+        "source_optimizer_artifact_sha256": "f" * 64,
+        "market_snapshot_sha256": "1" * 64,
+        "cash": 1000.0,
+        "position_market_value": 9000.0,
+        "portfolio_capital": 10000.0,
+        "position_count": 2,
+        "positions_filename": positions_path.name,
+        "positions_sha256": positions_sha,
+    }
+    positions_manifest_path.write_text(
+        json.dumps(
+            positions_manifest,
+            indent=2,
+            sort_keys=True,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    target_path, manifest_path, manifest = (
+        write_execution_safe_targets(
+            allocation_path=allocation_path,
+            allocation_manifest_path=allocation_manifest_path,
+            positions_path=positions_path,
+            positions_manifest_path=positions_manifest_path,
+            portfolio_capital=None,
+            execution_state="PAPER",
+            output_root=output_root,
+        )
+    )
+
+    assert target_path.is_file()
+    assert manifest_path.is_file()
+    assert manifest["portfolio_capital"] == 10000.0
+    assert manifest["paper_state_version"] == 2
+    assert manifest["paper_state_sha256"] == "d" * 64
+    assert (
+        manifest["position_market_snapshot_sha256"]
+        == "1" * 64
+    )
+    assert (
+        manifest["positions_manifest_sha256"]
+        == sha256_file(positions_manifest_path)
+    )
+    assert manifest["target_builder_version"] == "1.2.0"
+
+
+def test_rejects_tampered_paper_positions_snapshot(
+    tmp_path: Path,
+) -> None:
+    allocation_path = tmp_path / "candidate_allocation.csv"
+    allocation_manifest_path = tmp_path / "allocation_manifest.json"
+    positions_path = tmp_path / "managed_sleeve_positions.csv"
+    positions_manifest_path = tmp_path / "positions_manifest.json"
+
+    _allocation().to_csv(
+        allocation_path,
+        index=False,
+        lineterminator="\n",
+    )
+    allocation_sha = sha256_file(allocation_path)
+    allocation_manifest_path.write_text(
+        json.dumps(_manifest(allocation_sha)),
+        encoding="utf-8",
+    )
+
+    _positions().to_csv(
+        positions_path,
+        index=False,
+        lineterminator="\n",
+    )
+
+    positions_manifest_path.write_text(
+        json.dumps(
+            {
+                "position_snapshot_contract":
+                    "paper-optimizer-position-snapshot-v1",
+                "immutable": True,
+                "broker_submission_permitted": False,
+                "paper_state_version": 2,
+                "paper_state_sha256": "d" * 64,
+                "market_snapshot_sha256": "1" * 64,
+                "portfolio_capital": 10000.0,
+                "position_count": 2,
+                "positions_filename": positions_path.name,
+                "positions_sha256": "0" * 64,
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="CSV SHA-256"):
+        write_execution_safe_targets(
+            allocation_path=allocation_path,
+            allocation_manifest_path=allocation_manifest_path,
+            positions_path=positions_path,
+            positions_manifest_path=positions_manifest_path,
+            portfolio_capital=None,
+            execution_state="PAPER",
+            output_root=tmp_path / "out",
         )

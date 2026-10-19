@@ -6,7 +6,7 @@ from config.scanner_allocation import (
 
 
 PORTFOLIO_TARGET_HANDOFF_VERSION = "portfolio-target-handoff-v1"
-TARGET_BUILDER_VERSION = "1.1.0"
+TARGET_BUILDER_VERSION = "1.2.0"
 
 EXPECTED_ALLOCATION_CONTRACT_VERSION = (
     ALLOCATION_CONTRACT_VERSION
@@ -59,4 +59,9 @@ TARGET_COLUMNS = (
     "share_delta",
     "trade_side",
     "execution_state",
+)
+
+
+PAPER_POSITION_SNAPSHOT_CONTRACT = (
+    "paper-optimizer-position-snapshot-v1"
 )

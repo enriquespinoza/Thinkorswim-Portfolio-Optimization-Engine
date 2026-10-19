@@ -13,6 +13,7 @@ from config.execution_handoff import (
     EXECUTION_STATES,
     EXPECTED_ALLOCATION_CONTRACT_VERSION,
     PORTFOLIO_TARGET_HANDOFF_VERSION,
+    PAPER_POSITION_SNAPSHOT_CONTRACT,
     REFERENCE_PRICE_SOURCE_ALLOCATION,
     REFERENCE_PRICE_SOURCE_POSITION,
     SHARE_ROUNDING_POLICY,
@@ -138,6 +139,106 @@ def _validate_positions(positions: pd.DataFrame) -> pd.DataFrame:
     result["current_position"] = qty.astype(int)
     result["reference_price"] = price.astype(float)
     return result
+
+
+def _validate_position_manifest(
+    *,
+    manifest: dict[str, Any],
+    positions_path: Path,
+    positions: pd.DataFrame,
+    positions_sha256: str,
+) -> tuple[float, dict[str, Any]]:
+    if str(manifest.get("position_snapshot_contract", "")) != (
+        PAPER_POSITION_SNAPSHOT_CONTRACT
+    ):
+        raise ValueError("position snapshot manifest contract mismatch")
+
+    if manifest.get("immutable") is not True:
+        raise ValueError("position snapshot manifest must be immutable")
+    if manifest.get("broker_submission_permitted") is not False:
+        raise ValueError(
+            "position snapshot manifest must forbid broker submission"
+        )
+
+    if str(manifest.get("positions_sha256", "")) != positions_sha256:
+        raise ValueError(
+            "position snapshot CSV SHA-256 does not match manifest"
+        )
+
+    filename = str(manifest.get("positions_filename", "")).strip()
+    if filename and filename != positions_path.name:
+        raise ValueError(
+            "position snapshot filename does not match manifest"
+        )
+
+    try:
+        position_count = int(manifest.get("position_count"))
+    except (TypeError, ValueError) as exc:
+        raise ValueError(
+            "position snapshot position_count must be an integer"
+        ) from exc
+    if position_count != len(positions):
+        raise ValueError(
+            "position snapshot row count does not match manifest"
+        )
+
+    try:
+        portfolio_capital = float(manifest.get("portfolio_capital"))
+    except (TypeError, ValueError) as exc:
+        raise ValueError(
+            "position snapshot portfolio_capital must be numeric"
+        ) from exc
+    if not math.isfinite(portfolio_capital) or portfolio_capital <= 0:
+        raise ValueError(
+            "position snapshot portfolio_capital must be positive and finite"
+        )
+
+    lineage_fields = (
+        "paper_state_sha256",
+        "market_snapshot_sha256",
+    )
+    for field in lineage_fields:
+        value = str(manifest.get(field, "")).strip().lower()
+        if (
+            len(value) != 64
+            or any(ch not in "0123456789abcdef" for ch in value)
+        ):
+            raise ValueError(
+                f"position snapshot {field} must be a SHA-256 digest"
+            )
+
+    try:
+        paper_state_version = int(manifest.get("paper_state_version"))
+    except (TypeError, ValueError) as exc:
+        raise ValueError(
+            "position snapshot paper_state_version must be an integer"
+        ) from exc
+    if paper_state_version < 1:
+        raise ValueError(
+            "position snapshot paper_state_version must be positive"
+        )
+
+    lineage = {
+        "position_snapshot_contract": PAPER_POSITION_SNAPSHOT_CONTRACT,
+        "paper_state_version": paper_state_version,
+        "paper_state_sha256": str(
+            manifest["paper_state_sha256"]
+        ).lower(),
+        "paper_previous_state_sha256": manifest.get(
+            "paper_previous_state_sha256"
+        ),
+        "source_optimizer_artifact_sha256": manifest.get(
+            "source_optimizer_artifact_sha256"
+        ),
+        "position_market_snapshot_sha256": str(
+            manifest["market_snapshot_sha256"]
+        ).lower(),
+        "paper_cash": float(manifest.get("cash", 0.0)),
+        "paper_position_market_value": float(
+            manifest.get("position_market_value", 0.0)
+        ),
+    }
+    return portfolio_capital, lineage
 
 
 def build_execution_safe_targets(
@@ -291,13 +392,19 @@ def write_execution_safe_targets(
     allocation_path: Path,
     allocation_manifest_path: Path,
     positions_path: Path,
-    portfolio_capital: float,
+    portfolio_capital: float | None,
     execution_state: str,
     output_root: Path,
+    positions_manifest_path: Path | None = None,
 ) -> tuple[Path, Path, dict[str, Any]]:
     allocation_path = Path(allocation_path)
     allocation_manifest_path = Path(allocation_manifest_path)
     positions_path = Path(positions_path)
+    positions_manifest_path = (
+        Path(positions_manifest_path)
+        if positions_manifest_path is not None
+        else None
+    )
 
     if not allocation_path.is_file():
         raise FileNotFoundError(f"allocation is missing: {allocation_path}")
@@ -305,12 +412,58 @@ def write_execution_safe_targets(
         raise FileNotFoundError(f"allocation manifest is missing: {allocation_manifest_path}")
     if not positions_path.is_file():
         raise FileNotFoundError(f"positions snapshot is missing: {positions_path}")
+    if (
+        positions_manifest_path is not None
+        and not positions_manifest_path.is_file()
+    ):
+        raise FileNotFoundError(
+            f"positions manifest is missing: {positions_manifest_path}"
+        )
 
     allocation_sha = sha256_file(allocation_path)
     allocation_manifest_sha = sha256_file(allocation_manifest_path)
     allocation = pd.read_csv(allocation_path, low_memory=False)
     allocation_manifest = _read_manifest(allocation_manifest_path)
     positions = pd.read_csv(positions_path, low_memory=False)
+    positions = _validate_positions(positions)
+    positions_sha = sha256_file(positions_path)
+
+    position_lineage: dict[str, Any] = {}
+    positions_manifest_sha: str | None = None
+
+    if positions_manifest_path is not None:
+        positions_manifest = _read_manifest(
+            positions_manifest_path
+        )
+        manifest_capital, position_lineage = (
+            _validate_position_manifest(
+                manifest=positions_manifest,
+                positions_path=positions_path,
+                positions=positions,
+                positions_sha256=positions_sha,
+            )
+        )
+        positions_manifest_sha = sha256_file(
+            positions_manifest_path
+        )
+
+        if portfolio_capital is None:
+            portfolio_capital = manifest_capital
+        elif not math.isclose(
+            float(portfolio_capital),
+            manifest_capital,
+            rel_tol=0.0,
+            abs_tol=1e-8,
+        ):
+            raise ValueError(
+                "portfolio_capital does not match positions manifest"
+            )
+
+    if portfolio_capital is None:
+        raise ValueError(
+            "portfolio_capital is required unless --positions-manifest "
+            "provides it"
+        )
 
     targets, manifest = build_execution_safe_targets(
         allocation=allocation,
@@ -340,7 +493,9 @@ def write_execution_safe_targets(
 
     manifest = {
         **manifest,
-        "positions_sha256": sha256_file(positions_path),
+        "positions_sha256": positions_sha,
+        "positions_manifest_sha256": positions_manifest_sha,
+        **position_lineage,
         "execution_safe_targets_sha256": sha256_file(target_path),
     }
     manifest_path.write_text(
