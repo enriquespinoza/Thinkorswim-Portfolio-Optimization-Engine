@@ -9,6 +9,7 @@ from src.integrations.schwab.auth_bootstrap import (
     create_market_data_schwab_client,
     create_read_only_schwab_client,
     load_schwab_auth_config,
+    load_schwab_auth_profile,
     validate_auth_config,
 )
 
@@ -594,3 +595,65 @@ def test_market_data_wrapper_exposes_no_account_or_order_methods(
             client,
             method_name,
         )
+
+
+def test_loads_named_accounts_profile(tmp_path: Path) -> None:
+    environ = {
+        "SCHWAB_ACCOUNTS_APP_KEY": "ACCOUNTS-KEY",
+        "SCHWAB_ACCOUNTS_APP_SECRET": "ACCOUNTS-SECRET",
+        "SCHWAB_ACCOUNTS_CALLBACK_URL": "https://127.0.0.1:8182",
+        "SCHWAB_ACCOUNTS_TOKEN_PATH": "tokens/schwab_accounts_token.json",
+    }
+
+    config = load_schwab_auth_profile(
+        "accounts",
+        environ=environ,
+        project_root=tmp_path,
+    )
+
+    assert config.callback_url == "https://127.0.0.1:8182"
+    assert config.token_path == (
+        tmp_path / "tokens" / "schwab_accounts_token.json"
+    ).resolve()
+
+
+def test_named_profile_does_not_fallback_to_legacy_credentials(
+    tmp_path: Path,
+) -> None:
+    environ = sample_environment()
+
+    with pytest.raises(
+        ValueError,
+        match="SCHWAB_ACCOUNTS_APP_KEY",
+    ):
+        load_schwab_auth_profile(
+            "accounts",
+            environ=environ,
+            project_root=tmp_path,
+        )
+
+
+def test_named_profiles_use_distinct_token_paths(tmp_path: Path) -> None:
+    environ = {
+        "SCHWAB_ACCOUNTS_APP_KEY": "ACCOUNTS-KEY",
+        "SCHWAB_ACCOUNTS_APP_SECRET": "ACCOUNTS-SECRET",
+        "SCHWAB_ACCOUNTS_CALLBACK_URL": "https://127.0.0.1:8182",
+        "SCHWAB_ACCOUNTS_TOKEN_PATH": "tokens/schwab_accounts_token.json",
+        "SCHWAB_MARKET_DATA_APP_KEY": "MARKET-KEY",
+        "SCHWAB_MARKET_DATA_APP_SECRET": "MARKET-SECRET",
+        "SCHWAB_MARKET_DATA_CALLBACK_URL": "https://127.0.0.1:8182",
+        "SCHWAB_MARKET_DATA_TOKEN_PATH": "tokens/schwab_market_data_token.json",
+    }
+
+    accounts = load_schwab_auth_profile(
+        "accounts",
+        environ=environ,
+        project_root=tmp_path,
+    )
+    market = load_schwab_auth_profile(
+        "market_data",
+        environ=environ,
+        project_root=tmp_path,
+    )
+
+    assert accounts.token_path != market.token_path
