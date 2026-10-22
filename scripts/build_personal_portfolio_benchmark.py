@@ -133,9 +133,16 @@ def main() -> None:
         args.as_of_session,
     )
 
+    positive_personal = personal_weights[
+        personal_weights.gt(0)
+    ]
+    positive_optimizer = optimizer_weights[
+        optimizer_weights.gt(0)
+    ]
+
     symbols = sorted(
-        set(personal_weights.index)
-        | set(optimizer_weights.index)
+        set(positive_personal.index)
+        | set(positive_optimizer.index)
         | {args.benchmark_symbol.upper()}
     )
     returns = load_returns(
