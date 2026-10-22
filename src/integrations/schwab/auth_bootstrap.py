@@ -257,6 +257,79 @@ def load_schwab_auth_config(
     )
 
 
+
+def load_schwab_auth_profile(
+    profile: str,
+    environ: Mapping[str, str] | None = None,
+    project_root: Path = PROJECT_ROOT,
+    interactive: bool = True,
+) -> SchwabAuthConfig:
+    """
+    Load a named Schwab OAuth profile.
+
+    Supported profiles:
+    - "accounts": Accounts and Trading Production app
+    - "market_data": Market Data Production app
+
+    If a named profile is not configured, this function fails explicitly.
+    It never falls back to another application's credentials.
+    """
+    project_root = Path(project_root).resolve()
+
+    if environ is None:
+        dotenv_path = project_root / ".env"
+        load_dotenv(
+            dotenv_path=dotenv_path,
+            override=False,
+        )
+        environ = os.environ
+
+    normalized = str(profile).strip().lower()
+    prefixes = {
+        "accounts": "SCHWAB_ACCOUNTS",
+        "market_data": "SCHWAB_MARKET_DATA",
+    }
+
+    if normalized not in prefixes:
+        raise ValueError(
+            "profile must be one of: accounts, market_data"
+        )
+
+    prefix = prefixes[normalized]
+
+    app_key = _require_environment_value(
+        environ,
+        f"{prefix}_APP_KEY",
+    )
+    app_secret = _require_environment_value(
+        environ,
+        f"{prefix}_APP_SECRET",
+    )
+    callback_url = _require_environment_value(
+        environ,
+        f"{prefix}_CALLBACK_URL",
+    )
+    raw_token_path = _require_environment_value(
+        environ,
+        f"{prefix}_TOKEN_PATH",
+    )
+
+    token_path = Path(raw_token_path).expanduser()
+    if not token_path.is_absolute():
+        token_path = project_root / token_path
+    token_path = token_path.resolve()
+
+    return validate_auth_config(
+        SchwabAuthConfig(
+            app_key=app_key,
+            app_secret=app_secret,
+            callback_url=callback_url,
+            token_path=token_path,
+            interactive=bool(interactive),
+            max_token_age_seconds=DEFAULT_MAX_TOKEN_AGE_SECONDS,
+        )
+    )
+
 def _load_easy_client() -> Callable[..., Any]:
     """
     Import schwab-py only when real authentication
