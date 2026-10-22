@@ -271,8 +271,9 @@ def load_schwab_auth_profile(
     - "accounts": Accounts and Trading Production app
     - "market_data": Market Data Production app
 
-    If a named profile is not configured, this function fails explicitly.
-    It never falls back to another application's credentials.
+    Accounts always requires its dedicated named credentials.
+    Market Data supports the legacy generic SCHWAB_* variables for
+    backward compatibility with the existing market-data application.
     """
     project_root = Path(project_root).resolve()
 
@@ -297,22 +298,47 @@ def load_schwab_auth_profile(
 
     prefix = prefixes[normalized]
 
-    app_key = _require_environment_value(
-        environ,
-        f"{prefix}_APP_KEY",
-    )
-    app_secret = _require_environment_value(
-        environ,
-        f"{prefix}_APP_SECRET",
-    )
-    callback_url = _require_environment_value(
-        environ,
-        f"{prefix}_CALLBACK_URL",
-    )
-    raw_token_path = _require_environment_value(
-        environ,
-        f"{prefix}_TOKEN_PATH",
-    )
+    if (
+        normalized == "market_data"
+        and not str(environ.get(f"{prefix}_APP_KEY", "")).strip()
+    ):
+        # Backward compatibility: before named profiles were introduced,
+        # the Market Data Production app used the generic SCHWAB_* names.
+        # This fallback is intentionally market-data-only. The Accounts
+        # profile must always use its dedicated credentials/token.
+        app_key = _require_environment_value(
+            environ,
+            "SCHWAB_APP_KEY",
+        )
+        app_secret = _require_environment_value(
+            environ,
+            "SCHWAB_APP_SECRET",
+        )
+        callback_url = _require_environment_value(
+            environ,
+            "SCHWAB_CALLBACK_URL",
+        )
+        raw_token_path = _require_environment_value(
+            environ,
+            "SCHWAB_TOKEN_PATH",
+        )
+    else:
+        app_key = _require_environment_value(
+            environ,
+            f"{prefix}_APP_KEY",
+        )
+        app_secret = _require_environment_value(
+            environ,
+            f"{prefix}_APP_SECRET",
+        )
+        callback_url = _require_environment_value(
+            environ,
+            f"{prefix}_CALLBACK_URL",
+        )
+        raw_token_path = _require_environment_value(
+            environ,
+            f"{prefix}_TOKEN_PATH",
+        )
 
     token_path = Path(raw_token_path).expanduser()
     if not token_path.is_absolute():
