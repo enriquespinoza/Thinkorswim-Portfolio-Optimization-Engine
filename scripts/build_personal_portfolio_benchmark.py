@@ -31,7 +31,9 @@ def sha256_file(path: Path) -> str:
     return digest.hexdigest()
 
 
-def load_personal_weights(path: Path) -> tuple[pd.Series, float]:
+def load_personal_weights(
+    path: Path,
+) -> tuple[pd.Series, float, float]:
     frame = pd.read_csv(path, low_memory=False)
     required = {"symbol", "market_value"}
     missing = sorted(required.difference(frame.columns))
@@ -50,7 +52,42 @@ def load_personal_weights(path: Path) -> tuple[pd.Series, float]:
     if total <= 0:
         raise ValueError("personal portfolio value must be positive")
 
-    return pd.Series(values.to_numpy() / total, index=frame["symbol"]), total
+    priceable_mask = values.gt(0)
+
+    if "asset_type" in frame.columns:
+        asset_type = (
+            frame["asset_type"]
+            .astype(str)
+            .str.upper()
+            .str.strip()
+        )
+        priceable_mask &= ~asset_type.isin(
+            {"FIXED_INCOME", "BOND"}
+        )
+
+    ticker_like = (
+        frame["symbol"]
+        .astype(str)
+        .str.fullmatch(r"[A-Za-z][A-Za-z0-9.\-^/]*")
+        .fillna(False)
+    )
+    priceable_mask &= ticker_like
+
+    priceable_value = float(values.loc[priceable_mask].sum())
+    if priceable_value <= 0:
+        raise ValueError(
+            "personal portfolio contains no priceable holdings "
+            "for historical-return analysis"
+        )
+
+    weights = pd.Series(
+        values.loc[priceable_mask].to_numpy() / priceable_value,
+        index=frame.loc[priceable_mask, "symbol"],
+    )
+
+    pricing_coverage = priceable_value / total
+
+    return weights, total, pricing_coverage
 
 
 def load_optimizer_weights(
@@ -126,7 +163,11 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    personal_weights, portfolio_value = load_personal_weights(args.personal_snapshot)
+    (
+        personal_weights,
+        portfolio_value,
+        personal_pricing_coverage,
+    ) = load_personal_weights(args.personal_snapshot)
     optimizer_weights, allocation_sha = load_optimizer_weights(
         args.optimizer_allocation,
         args.optimizer_manifest,
@@ -162,6 +203,8 @@ def main() -> None:
     summary.update(
         {
             "personal_portfolio_value": portfolio_value,
+            "personal_pricing_coverage": personal_pricing_coverage,
+            "personal_unpriced_weight": 1.0 - personal_pricing_coverage,
             "portfolio_snapshot_sha256": sha256_file(args.personal_snapshot),
             "system_allocation_sha256": allocation_sha,
             "system_allocation_manifest_sha256": sha256_file(args.optimizer_manifest),
@@ -193,6 +236,8 @@ def main() -> None:
         "as_of_session",
         "personal_portfolio_value",
         "personal_portfolio_volatility",
+        "personal_pricing_coverage",
+        "personal_unpriced_weight",
         "optimizer_portfolio_volatility",
         "equal_weight_volatility",
         "spy_volatility",
