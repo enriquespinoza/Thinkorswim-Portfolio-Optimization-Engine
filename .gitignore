@@ -250,3 +250,7 @@ data/forward/
 # Promote validated artifacts to reports/validation/
 reports/generated/execution_targets/
 reports/generated/scanner_candidate_prices/
+
+# Personal Portfolio Benchmark local inputs and generated symbol-level research
+data/private/personal_portfolio/
+reports/generated/portfolio_comparison/
