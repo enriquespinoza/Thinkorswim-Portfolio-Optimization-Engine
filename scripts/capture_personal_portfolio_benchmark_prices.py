@@ -42,8 +42,23 @@ def load_benchmark_symbols(
     benchmark_symbol: str,
 ) -> list[str]:
     personal = pd.read_csv(personal_snapshot, low_memory=False)
-    if "symbol" not in personal.columns:
-        raise ValueError("personal snapshot missing symbol column")
+    required_personal = {"symbol", "market_value"}
+    missing_personal = sorted(required_personal.difference(personal.columns))
+    if missing_personal:
+        raise ValueError(
+            f"personal snapshot missing required columns: {missing_personal}"
+        )
+
+    personal["market_value"] = pd.to_numeric(
+        personal["market_value"],
+        errors="coerce",
+    )
+    if personal["market_value"].isna().any():
+        raise ValueError("personal snapshot market_value must be numeric")
+
+    personal = personal.loc[
+        personal["market_value"].gt(0)
+    ].copy()
 
     allocation = pd.read_csv(optimizer_allocation, low_memory=False)
     required = {"as_of_session", "symbol"}
@@ -140,9 +155,15 @@ def main() -> None:
 
     output_dir = Path(args.private_output_root)
     output_dir.mkdir(parents=True, exist_ok=True)
+    snapshot_stem = args.personal_snapshot.stem.lower()
+    scope = (
+        "all_accounts"
+        if "all_accounts" in snapshot_stem
+        else "single_account"
+    )
     output_path = (
         output_dir
-        / f"benchmark_prices_{args.as_of_session}.csv"
+        / f"benchmark_prices_{scope}_{args.as_of_session}.csv"
     )
 
     matrix_path, manifest_path = write_price_matrix_from_capture_summary(
