@@ -60,6 +60,29 @@ def load_benchmark_symbols(
         personal["market_value"].gt(0)
     ].copy()
 
+    if "asset_type" in personal.columns:
+        asset_type = (
+            personal["asset_type"]
+            .astype(str)
+            .str.upper()
+            .str.strip()
+        )
+        non_price_history_types = {
+            "FIXED_INCOME",
+            "BOND",
+        }
+        personal = personal.loc[
+            ~asset_type.isin(non_price_history_types)
+        ].copy()
+
+    ticker_like = (
+        personal["symbol"]
+        .astype(str)
+        .str.fullmatch(r"[A-Za-z][A-Za-z0-9.\-^/]*")
+        .fillna(False)
+    )
+    personal = personal.loc[ticker_like].copy()
+
     allocation = pd.read_csv(optimizer_allocation, low_memory=False)
     required = {"as_of_session", "symbol"}
     missing = sorted(required.difference(allocation.columns))
